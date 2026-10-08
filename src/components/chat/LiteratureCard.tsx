@@ -69,6 +69,9 @@ export function LiteratureCardPanel({
           <p className="mt-1 text-[11px] text-muted-foreground">
             {[card.journal, card.year, card.pmid ? `PMID: ${card.pmid}` : null].filter(Boolean).join(" · ")}
           </p>
+          {!card.pmid && !card.doi ? (
+            <span className="mt-1.5 inline-flex rounded bg-secondary px-1.5 py-px text-[9px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+          ) : null}
           {card.outline && card.outline.length > 0 ? (
             <div className="mt-2.5 space-y-2">
               {card.outline.slice(0, 8).map((s, i) => (

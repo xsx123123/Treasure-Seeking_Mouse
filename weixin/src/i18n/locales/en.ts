@@ -251,7 +251,7 @@ export const en = {
   // ---- 关于页 ----
   "about.back": "Back to digging",
   "about.highlights": "Highlights",
-  "about.mcpTitle": "Chat backend: seqout-mcp",
+  "about.mcpTitle": "Chat backend & architecture",
   "about.mcpNote":
     "The chat backend wraps {mcp}, an MCP Server that queries public omics data via {seqout}. It exposes 26 read-only tools covering GEO, SRA, ENA and GSA dataset search, project details, sample info, accession lookup, statistics and download links. It uses stdio transport: the MCP client launches the process and talks over stdin/stdout; regular logs go to stderr only, never polluting the MCP protocol stream. This app ports those tool capabilities declaratively into the chat service as OpenAI function schemas — no local Python MCP process required.",
   "about.deploy": "One-click self-host",

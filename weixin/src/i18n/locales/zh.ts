@@ -247,7 +247,7 @@ export const zh = {
   // ---- 关于页 ----
   "about.back": "返回挖宝",
   "about.highlights": "核心亮点",
-  "about.mcpTitle": "对话后端：seqout-mcp",
+  "about.mcpTitle": "对话后端与架构",
   "about.mcpNote":
     "本项目对话后端封装的 {mcp} 是一个通过 {seqout} 查询公共组学数据的 MCP Server，提供 26 个只读工具，覆盖 GEO、SRA、ENA、GSA 数据集搜索、项目详情、样本信息、编号反查、统计和下载链接。它使用 stdio 传输：MCP 客户端负责启动进程并通过标准输入/输出通信；普通日志只写入 stderr，不会污染 MCP 协议数据。本应用将这套工具能力以 OpenAI function schema 声明式移植进对话服务，无需在本地运行 Python MCP 进程。",
   "about.deploy": "一键自托管",

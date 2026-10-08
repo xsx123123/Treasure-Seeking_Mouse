@@ -7,6 +7,7 @@
 // 经 npm run sync:prompts 生成 prompts.generated.ts 后从这里导入；tests/prompts-sync.test.ts 守住漂移。
 
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_EN } from './prompts.generated.ts';
+import { INTENT_TARGETS, parseResearchIntent, type ResearchIntent } from './intent.ts';
 export { SYSTEM_PROMPT, SYSTEM_PROMPT_EN };
 
 // 环境变量（Deno / Node 通用；本地自托管时在 server/.env 或进程 env 覆盖）：
@@ -14,16 +15,30 @@ export { SYSTEM_PROMPT, SYSTEM_PROMPT_EN };
 //   LLM_BASE_URL     可选：OpenAI 兼容接口根地址，默认 Meoo AI 的 compatible-mode/v1
 //   LLM_MODEL        可选：请求未指定模型时的默认值
 //   SEQOUT_BASE_URL  可选：seqout 数据 API 地址
+//   ENA_BASE_URL     可选：ENA Portal API 地址（ena_search 工具直连源）
 //   NCBI_API_KEY     可选：NCBI E-utilities key（无 key 限 3 次/秒，有 key 10 次/秒）
 //   NCBI_EMAIL       可选：NCBI 要求的联系方式（tool=go_xunbaoshu）
 //   CROSSREF_MAILTO  可选：Crossref polite pool 联系邮箱
 //   OPENALEX_MAILTO / OPENALEX_API_KEY 可选：OpenAlex 联系邮箱 / key
 //   SEMANTIC_SCHOLAR_API_KEY 可选：Semantic Scholar API key
+//   CHAT_SHARED_SECRET 可选：配置后对话接口要求 X-Chat-Key 匹配；未配置则对话接口无鉴权（启动时会打印警告）
 const LLM_BASE_URL = envGet('LLM_BASE_URL') || 'https://api.meoo.host/meoo-ai/compatible-mode/v1';
 const SEQOUT_BASE_URL = envGet('SEQOUT_BASE_URL') || 'https://seqout.org/api';
 const NGDC_BASE_URL = envGet('NGDC_BASE_URL') || 'https://ngdc.cncb.ac.cn';
+const ENA_BASE_URL = envGet('ENA_BASE_URL') || 'https://www.ebi.ac.uk/ena/portal/api';
 const DEFAULT_MODEL = envGet('LLM_MODEL') || 'qwen3.6-plus';
 const FUNCTION_NAME = 'seqout-chat';
+
+// 启动自检：CHAT_SHARED_SECRET 未配置时对话接口（verify_jwt=false）无任何鉴权，
+// 端点暴露到哪，谁就能消耗 LLM 额度。不改成默认拒绝——会破坏现有熟人部署——
+// 但必须在启动日志里醒目提示，自托管/公网部署应配置该变量并让前端携带 X-Chat-Key。
+if (!envGet('CHAT_SHARED_SECRET')) {
+  console.warn(
+    `[${FUNCTION_NAME}] ⚠️⚠️⚠️ 未配置 CHAT_SHARED_SECRET：对话接口当前无鉴权，` +
+    `任何能访问该端点的调用者都可直接消耗 LLM 额度。自托管/公网部署请务必配置 ` +
+    `CHAT_SHARED_SECRET，并让前端请求携带 X-Chat-Key 头。`,
+  );
+}
 
 /** 跨运行时读环境变量：Deno（Meoo 平台）与 Node（本地自托管 server/local.mjs）皆可 */
 function envGet(key: string): string {
@@ -185,6 +200,14 @@ function strEnum(values: string[]) {
 }
 
 const TOOL_DEFS = [
+  // 意图规划：不触达外部 API。模型在首次检索前把用户需求结构化为 ResearchIntent，
+  // 函数内校验归一化（见 intent.ts）后落 tool_logs 审计、并把归一化 IR 回灌模型引导后续工具参数。
+  tool('intent_plan', '检索意图规划（不执行检索）：在首次检索调用前，把用户需求结构化为意图。平台会校验并归一化（中文物种名→二名法学名、assay 别名→library_strategy 词表值），返回的归一化意图是后续检索工具参数的依据。可与首个检索工具同一轮并行调用。', {
+    question: reqStr('用户研究问题的一句话概括'),
+    targets: { type: 'array', items: strEnum([...INTENT_TARGETS]), description: '目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=公共文献' },
+    filters: { type: 'object', nullable: true, description: '可选过滤条件，无则省略整个字段', properties: { organism: strOpt('物种，中文名或学名均可，平台归一化为二名法学名'), assay: strOpt('实验/测序类型，中英文别名均可，平台归一化为 library_strategy 词表值'), tissue_or_celltype: strOpt('组织或细胞类型'), condition: strOpt('疾病或处理条件'), has_control: { type: 'boolean', nullable: true, description: '是否要求含对照组' } } },
+    needs_literature: { type: 'boolean', description: '是否需要同时检索公共文献' },
+  }, ['question', 'targets', 'needs_literature']),
   tool('seqout_search', '在 GEO/SRA/ENA/GSA 公共数据库中跨库搜索组学项目。', { query: reqStr('搜索关键词，如疾病、物种、技术'), limit: intOpt('返回条数，默认5，最大20'), cursor: strOpt('上次响应的 next_cursor，用于翻页') }, ['query']),
   tool('seqout_search_geo', '仅搜索 GEO 数据集（表达谱/芯片/RNA-Seq 等研究）。', { query: reqStr('搜索关键词'), limit: intOpt('返回条数，默认5，最大20'), cursor: strOpt('翻页游标') }, ['query']),
   tool('seqout_search_sra', '仅搜索 SRA 测序记录。', { query: reqStr('搜索关键词'), limit: intOpt('返回条数'), cursor: strOpt('翻页游标') }, ['query']),
@@ -211,6 +234,11 @@ const TOOL_DEFS = [
   tool('seqout_get_platform_totals', '获取平台实验总数；传 platform 时查询对应过滤选项。', { platform: strOpt('平台名称，可空') }, []),
   tool('seqout_beacon_info', '获取 Beacon 身份和元数据。', {}, []),
   tool('seqout_beacon_runs', 'Beacon 默认运行记录查询（服务端默认分页，不支持 limit/skip）。', {}, []),
+  tool('ena_search', '直连 ENA（欧洲核酸档案库）Portal API 检索 read_study 级研究。适合查欧洲来源项目（PRJEB/ERP 编号）或作为 seqout 镜像之外的独立来源。query 支持自由文本（自动包装为标题/描述匹配）与 ENA 字段查询语法（如 tax_eq(9606)）。', {
+    query: reqStr('检索词：自由文本或 ENA 查询语法（如 study_title="lung" 或 tax_eq(9606)）'),
+    limit: intOpt('返回条数，默认10，最大20'),
+    cursor: strOpt('上次响应的 next_cursor（偏移量），用于翻页'),
+  }, ['query']),
   tool('literature_search', '搜索 PubMed、Europe PMC、Crossref、OpenAlex、Semantic Scholar、CORE、arXiv、bioRxiv、medRxiv 文献。适合按疾病、基因、物种、技术或研究方向查找多篇论文；不要用于查询单个 PMID 的证据链。source=all 时并行查询全部来源。', {
     query: reqStr('文献检索词，可使用自然语言或 PubMed 查询式'),
     source: { type: 'string', enum: ['all', ...LITERATURE_SOURCES], description: '数据源，默认 all；all 会并行查询全部来源' },
@@ -228,6 +256,9 @@ const TOOL_DEFS = [
   tool('ngdc_get_gsa_mirror', '通过 seqout 检索 SRA/GEO 编号对应的 GSA 国内镜像。找不到时如实返回无镜像。', { accession: reqStr('SRP、SRR、PRJNA 或 GSE 编号') }, ['accession']),
 ];
 export const NGDC_TOOL_NAMES = ['ngdc_get_gwh_assembly', 'ngdc_get_gwh_project', 'ngdc_get_gwh_sample', 'ngdc_get_genbase_sequence', 'ngdc_get_gsa_mirror'] as const;
+
+/** 意图规划工具名：主循环里拦截，不进 executeTool / 不发 SSE tool 事件 / 不计用量 */
+export const INTENT_TOOL_NAME = 'intent_plan';
 
 function tool(name: string, description: string, properties: Record<string, unknown>, required: string[]) {
   return { type: 'function', function: { name, description, parameters: { type: 'object', properties, required } } };
@@ -305,6 +336,23 @@ function validateNgdcAccession(value: string, pattern: RegExp, label: string): s
   const acc = value.trim().toUpperCase();
   if (!pattern.test(acc)) throw new Error(`${label}格式不正确：${acc}`);
   return acc;
+}
+
+/** 检索词统一入口校验（格式层，对齐 NGDC 工具的入参校验；不做词表/语义校验）：
+ *  长度 1-500、控制字符归一为空格、拒绝纯符号串。失败抛出带改写指引的错误，
+ *  经调用方 catch 以 {success:false,error} 回灌给模型，引导其修正检索词后重试。 */
+export function validateSearchQuery(raw: string): string {
+  const cleaned = String(raw ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!cleaned) {
+    throw new Error('检索词为空或只含控制字符。请给出具体的关键词，例如疾病名（lung adenocarcinoma）、基因（TP53）、物种（Mus musculus）或技术（scRNA-seq）后重试。');
+  }
+  if (cleaned.length > 500) {
+    throw new Error(`检索词过长（${cleaned.length} 字符，上限 500）。请提炼为少数几个核心关键词后重试，不要把整段文字直接当作检索词。`);
+  }
+  if (!/[\p{L}\p{N}]/u.test(cleaned)) {
+    throw new Error(`检索词「${cleaned.slice(0, 50)}」不含任何字母或数字，无法检索。请改用具体的关键词（疾病、基因、物种或技术名称）后重试。`);
+  }
+  return cleaned;
 }
 
 export function genbasePreview(text: string, format: 'fasta' | 'gbf', url: string): Record<string, Json> {
@@ -495,7 +543,7 @@ export async function resolveBioproject(studyAccession: string): Promise<string 
     const project = await seqoutGet(`/project/${encodeURIComponent(studyAccession)}`);
     const alias = (project as { alias?: unknown }).alias;
     if (typeof alias === 'string' && /^PRJ(NA|EB|DB)\d+$/i.test(alias.trim())) return alias.trim().toUpperCase();
-    const prj = collectStudyCandidates(project).find((c) => /^PRJ/i.test(c));
+    const prj = studyCandidates(project).find((c) => /^PRJ/i.test(c));
     return prj ?? null;
   } catch {
     return null;
@@ -513,14 +561,66 @@ function q(args: Record<string, Json | undefined>, key: string): string | undefi
   return v === undefined || v === null || v === '' ? undefined : String(v);
 }
 
-async function executeTool(name: string, args: Record<string, Json | undefined>): Promise<Json> {
+export async function executeTool(name: string, args: Record<string, Json | undefined>): Promise<Json> {
   switch (name) {
-    case 'seqout_search': return wrap(await seqoutGet('/search', compact({ q: q(args, 'query'), cursor: q(args, 'cursor') })));
-    case 'seqout_search_geo': return wrap(await seqoutGet('/search/geo', compact({ q: q(args, 'query'), cursor: q(args, 'cursor') })));
-    case 'seqout_search_sra': return wrap(await seqoutGet('/search/sra', compact({ q: q(args, 'query'), cursor: q(args, 'cursor') })));
+    // 检索/项目类工具带 NCBI 兜底：seqout 镜像 404（新项目未同步）/5xx 时直连 NCBI E-utilities，
+    // 兜底失败或限流时抛原始 seqout 错误；其余错误（格式校验等）不兜底直接抛。
+    case 'seqout_search': {
+      const query = validateSearchQuery(q(args, 'query') ?? '');
+      try {
+        return wrap(await seqoutGet('/search', compact({ q: query, cursor: q(args, 'cursor') })));
+      } catch (err) {
+        if (!isSeqoutServerError(err)) throw err;
+        const fb = await ncbiDirectFallback('search', query, clampLimit(args.limit, 5));
+        if (!fb) throw err;
+        return wrap(fb);
+      }
+    }
+    case 'seqout_search_geo': {
+      const query = validateSearchQuery(q(args, 'query') ?? '');
+      try {
+        return wrap(await seqoutGet('/search/geo', compact({ q: query, cursor: q(args, 'cursor') })));
+      } catch (err) {
+        if (!isSeqoutServerError(err)) throw err;
+        const fb = await ncbiDirectFallback('search_geo', query, clampLimit(args.limit, 5));
+        if (!fb) throw err;
+        return wrap(fb);
+      }
+    }
+    case 'seqout_search_sra': {
+      const query = validateSearchQuery(q(args, 'query') ?? '');
+      try {
+        return wrap(await seqoutGet('/search/sra', compact({ q: query, cursor: q(args, 'cursor') })));
+      } catch (err) {
+        if (!isSeqoutServerError(err)) throw err;
+        const fb = await ncbiDirectFallback('search_sra', query, clampLimit(args.limit, 5));
+        if (!fb) throw err;
+        return wrap(fb);
+      }
+    }
     case 'seqout_search_structured': return wrap(await seqoutGet('/search/structured', compact({ organism: q(args, 'organism'), library_strategy: q(args, 'library_strategy'), assay_l1: q(args, 'assay_l1'), assay_l2: q(args, 'assay_l2'), cursor: q(args, 'cursor') })));
-    case 'seqout_get_project_detail': return wrap(await seqoutGet(`/project/${encodeURIComponent(String(args.accession).toUpperCase())}`));
-    case 'seqout_get_project_metadata': return wrap(await seqoutGet(`/project/${encodeURIComponent(String(args.accession).toUpperCase())}/metadata`));
+    case 'seqout_get_project_detail': {
+      const acc = String(args.accession).toUpperCase();
+      try {
+        return wrap(await seqoutGet(`/project/${encodeURIComponent(acc)}`));
+      } catch (err) {
+        if (!isSeqoutServerError(err)) throw err;
+        const fb = await ncbiDirectFallback('project', acc, 1);
+        if (!fb) throw err;
+        return wrap(fb);
+      }
+    }
+    case 'seqout_get_project_metadata': {
+      const acc = String(args.accession).toUpperCase();
+      try {
+        return wrap(await seqoutGet(`/project/${encodeURIComponent(acc)}/metadata`));
+      } catch (err) {
+        if (!isSeqoutServerError(err)) throw err;
+        const fb = await ncbiDirectFallback('project', acc, 1);
+        if (!fb) throw err;
+        return wrap(fb);
+      }
+    }
     case 'seqout_get_project_citation': return wrap(await seqoutGet(`/project/${encodeURIComponent(String(args.accession).toUpperCase())}/cite`));
     case 'seqout_get_project_enriched': return wrap(await seqoutGet(`/project/${encodeURIComponent(String(args.accession).toUpperCase())}/enriched`));
     case 'seqout_get_experiments': { const s = await resolveStudy(String(args.study_accession)); return wrap(await seqoutGet(`/project/${encodeURIComponent(s)}/experiments`)); }
@@ -576,12 +676,13 @@ async function executeTool(name: string, args: Record<string, Json | undefined>)
     case 'seqout_get_platform_totals': { const p = q(args, 'platform'); return wrap(await seqoutGet(p ? '/stats/platform-filters' : '/stats/platform-totals', p ? { platform: p } : undefined)); }
     case 'seqout_beacon_info': return wrap(await seqoutGet('/beacon/info'));
     case 'seqout_beacon_runs': return wrap(await seqoutGet('/beacon/runs'));
+    case 'ena_search': return wrap(await searchEna(args));
     case 'literature_search': {
-      const query = String(args.query ?? '').trim();
-      if (!query) throw new Error('文献检索词不能为空');
+      const query = validateSearchQuery(String(args.query ?? ''));
+      const litArgs = { ...args, query }; // 归一化后的检索词透传给各来源适配器
       const source = q(args, 'source') ?? 'all';
       if (source !== 'all' && !(LITERATURE_SOURCES as readonly string[]).includes(source)) throw new Error(`文献来源不支持：${source}`);
-      const payload = source === 'all' ? await searchAllLiterature(args) : await searchLiteratureSource(source, args);
+      const payload = source === 'all' ? await searchAllLiterature(litArgs) : await searchLiteratureSource(source, litArgs);
       return wrap(payload);
     }
     case 'ngdc_get_gwh_assembly': {
@@ -629,6 +730,187 @@ function emptyStudyResult(study: string, note: string): Json {
 function isBusinessEmpty(payload: Json): boolean {
   const d = payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, Json>).data : null;
   return !!d && typeof d === 'object' && !Array.isArray(d) && (d as Record<string, Json>).empty === true;
+}
+
+// ---------- ENA 直连（ena_search 工具） ----------
+
+/** ENA 查询语法特征：含字段操作符则视为高级查询原样透传，否则按自由文本处理。
+ *  （ENA Portal /search 的 query 参数不接受裸自由文本，实测返回 "Query is in wrong format"） */
+const ENA_FIELD_SYNTAX = /[=()]|\bAND\b|\bOR\b|\bNOT\b/i;
+
+export function buildEnaQuery(input: string): string {
+  const trimmed = input.trim();
+  if (ENA_FIELD_SYNTAX.test(trimmed)) return trimmed;
+  // 自由文本 → 逐词（标题 OR 描述）AND 组合。实测 "*porcine macrophage*" 这种带空格的
+  // 通配短语零命中，逐词 AND 才有正常召回；内层双引号剥掉防破坏语法。
+  const tokens = trimmed.replace(/"/g, ' ').split(/\s+/).filter(Boolean).slice(0, 8);
+  if (tokens.length === 1) return `study_title="*${tokens[0]}*" OR description="*${tokens[0]}*"`;
+  return tokens.map((tok) => `(study_title="*${tok}*" OR description="*${tok}*")`).join(' AND ');
+}
+
+const ENA_STUDY_FIELDS = 'study_accession,study_title,scientific_name,description,center_name,first_public,last_updated';
+
+/** ENA Portal read_study 行 → 与 seqout 搜索结果同构的数据集条目（extractCards 通用分支直接消费，meta.source=ena） */
+export function enaStudyToDataset(item: Record<string, Json>): Record<string, Json> | null {
+  const accession = typeof item.study_accession === 'string' ? item.study_accession.trim().toUpperCase() : '';
+  if (!accession) return null;
+  const out: Record<string, Json> = { accession, source: 'ena' };
+  if (typeof item.study_title === 'string' && item.study_title) out.title = item.study_title;
+  if (typeof item.scientific_name === 'string' && item.scientific_name) out.organism = item.scientific_name;
+  if (typeof item.description === 'string' && item.description) out.summary = item.description.slice(0, 5000);
+  if (typeof item.center_name === 'string' && item.center_name) out.center_name = item.center_name;
+  if (typeof item.first_public === 'string' && item.first_public) out.first_public = item.first_public;
+  return out;
+}
+
+/** ENA Portal API 检索（read_study 结果级）；cursor 即偏移量，next_cursor 在返回满页时给出 */
+export async function searchEna(args: Record<string, Json | undefined>): Promise<Json> {
+  const query = validateSearchQuery(String(args.query ?? ''));
+  const limit = clampLimit(args.limit);
+  const offset = Math.max(0, Math.floor(Number(q(args, 'cursor') ?? 0)) || 0);
+  // read_study 实际按 run 展开行（实测同一 study_accession 占多行），多取 5 倍再去重，保证去重后仍有足够结果
+  const fetchLimit = Math.min(limit * 5, 100);
+  const usp = new URLSearchParams({
+    result: 'read_study',
+    query: buildEnaQuery(query),
+    fields: ENA_STUDY_FIELDS,
+    format: 'json',
+    limit: String(fetchLimit),
+    offset: String(offset),
+  });
+  const json = await fetchWithRetry(`${ENA_BASE_URL}/search?${usp.toString()}`, 10000, 2, { 'User-Agent': 'ResearchTreasureMouse/1.0' });
+  const rows = Array.isArray(json) ? json : [];
+  const seen = new Set<string>();
+  const results: Record<string, Json>[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+    const item = enaStudyToDataset(row as Record<string, Json>);
+    if (!item || seen.has(String(item.accession))) continue;
+    seen.add(String(item.accession));
+    results.push(item);
+    if (results.length >= limit) break;
+  }
+  return { source: 'ena', query, total: results.length, ...(rows.length >= fetchLimit ? { next_cursor: String(offset + fetchLimit) } : {}), results };
+}
+
+// ---------- NCBI E-utilities 兜底（seqout 项目/检索类查询 404/5xx 时） ----------
+// seqout 是定期同步 NCBI 的镜像库，很新的项目未同步时 404。此时直连 NCBI 补一次，
+// 结果标注 source='ncbi-direct'，消除"新项目直接 404"的盲区。
+// 与 emptyStudyResult（GEO-only 项目如实返回空，硬红线）严格区分：只有镜像服务端错误/查无此项才兜底。
+
+/** 仅 seqout 服务端错误（404 未收录 / 5xx 故障）触发兜底；格式错误、业务空矿等不触发 */
+export function isSeqoutServerError(err: unknown): boolean {
+  return err instanceof Error && /HTTP (404|5\d\d)/.test(err.message);
+}
+
+export const NCBI_DIRECT_NOTE = 'seqout 镜像暂未收录该项目或服务异常，以下结果直接来自 NCBI E-utilities（source=ncbi-direct），字段不如 seqout 完整，仅供参考。';
+
+/** 通用 E-utilities JSON 调用（复用 eutilsParams 的 tool/email/key 参数与 fetchWithRetry 退避） */
+async function eutilsJson(endpoint: string, params: Record<string, string>): Promise<Json> {
+  return fetchWithRetry(`${EUTILS}/${endpoint}.fcgi?${eutilsParams(params)}`, 8000, 2);
+}
+
+async function eutilsSearchIds(db: 'gds' | 'sra', term: string, retmax: number): Promise<string[]> {
+  const json = await eutilsJson('esearch', { db, term, retmode: 'json', retmax: String(retmax) });
+  const ids = (json as { esearchresult?: { idlist?: unknown } }).esearchresult?.idlist;
+  return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+}
+
+async function eutilsSummaryItems(db: 'gds' | 'sra', ids: string[]): Promise<Record<string, Json>[]> {
+  if (!ids.length) return [];
+  const json = await eutilsJson('esummary', { db, id: ids.join(','), retmode: 'json' });
+  const result = (json as { result?: Record<string, unknown> }).result ?? {};
+  const out: Record<string, Json>[] = [];
+  for (const id of ids) {
+    const item = result[id];
+    // esummary 对无权限/已撤下条目返回 { uid, error }，跳过
+    if (item && typeof item === 'object' && !Array.isArray(item) && !(item as Record<string, unknown>).error) out.push(item as Record<string, Json>);
+  }
+  return out;
+}
+
+/** gds 库 esummary 条目 → 数据集（只收 GSE 系列；gds 库还混有 GSM/GDS 条目） */
+export function gdsSummaryToDataset(item: Record<string, Json>): Record<string, Json> | null {
+  const accession = typeof item.accession === 'string' ? item.accession.trim().toUpperCase() : '';
+  if (!/^GSE\d+$/.test(accession)) return null;
+  const out: Record<string, Json> = { accession, source: 'ncbi-direct' };
+  if (typeof item.title === 'string' && item.title) out.title = item.title;
+  if (typeof item.summary === 'string' && item.summary) out.summary = item.summary;
+  if (typeof item.taxon === 'string' && item.taxon) out.organism = item.taxon;
+  if (typeof item.gdstype === 'string' && item.gdstype) out.platform = item.gdstype;
+  if (typeof item.n_samples === 'number') out.n_samples = item.n_samples;
+  return out;
+}
+
+function xmlDecode(s: string): string {
+  return s.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
+
+/** sra 库 esummary 条目（实验级，核心信息嵌在 expxml 字符串里）→ 按 Study 归一的数据集 */
+export function sraExpxmlToDataset(item: Record<string, Json>): Record<string, Json> | null {
+  const xml = typeof item.expxml === 'string' ? item.expxml : '';
+  const study = /<Study\s+acc="([A-Z]+P\d+)"(?:\s+name="([^"]*)")?/.exec(xml);
+  if (!study) return null;
+  const out: Record<string, Json> = { accession: study[1], source: 'ncbi-direct' };
+  if (study[2]) out.title = xmlDecode(study[2]);
+  const org = /ScientificName="([^"]+)"/.exec(xml);
+  if (org) out.organism = xmlDecode(org[1]);
+  const strategy = /<LIBRARY_STRATEGY>([^<]+)</.exec(xml);
+  if (strategy) out.library_strategy = xmlDecode(strategy[1]);
+  return out;
+}
+
+async function ncbiGdsDatasets(term: string, limit: number): Promise<Record<string, Json>[]> {
+  const ids = await eutilsSearchIds('gds', `(${term}) AND gse[Entry Type]`, limit);
+  const items = await eutilsSummaryItems('gds', ids);
+  return items.map(gdsSummaryToDataset).filter((x): x is Record<string, Json> => Boolean(x));
+}
+
+async function ncbiSraStudies(term: string, limit: number): Promise<Record<string, Json>[]> {
+  // sra 的 esearch 返回实验级 uid，按 Study 聚合后条数会缩，故多取一些
+  const ids = await eutilsSearchIds('sra', term, Math.min(limit * 5, 100));
+  const items = await eutilsSummaryItems('sra', ids);
+  const seen = new Set<string>();
+  const out: Record<string, Json>[] = [];
+  for (const item of items) {
+    const d = sraExpxmlToDataset(item);
+    if (!d || seen.has(String(d.accession))) continue;
+    seen.add(String(d.accession));
+    out.push(d);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** seqout 项目/检索类查询的 NCBI 直连兜底。返回 null = 兜底无果或不可用，调用方应抛原始 seqout 错误。 */
+export async function ncbiDirectFallback(
+  kind: 'search' | 'search_geo' | 'search_sra' | 'project',
+  accessionOrQuery: string,
+  limit: number,
+): Promise<Json | null> {
+  if (!acquireNcbi()) return null; // NCBI 限流预算（与文献链路共用 token bucket）用尽时不兜底
+  try {
+    const capped = Math.min(20, Math.max(1, Math.floor(limit)));
+    if (kind === 'project') {
+      const acc = accessionOrQuery.toUpperCase();
+      let results: Record<string, Json>[];
+      if (/^GSE\d+$/.test(acc)) results = await ncbiGdsDatasets(`${acc}[ACCN]`, 1);
+      else if (/^(PRJ(?:NA|EB|DB)|SRP|ERP|DRP)\d+$/.test(acc)) results = await ncbiSraStudies(acc, 1);
+      else return null;
+      if (!results.length) return null;
+      return { source: 'ncbi-direct', note: NCBI_DIRECT_NOTE, total: results.length, results };
+    }
+    let results: Record<string, Json>[];
+    if (kind === 'search_geo') results = await ncbiGdsDatasets(accessionOrQuery, capped);
+    else if (kind === 'search_sra') results = await ncbiSraStudies(accessionOrQuery, capped);
+    else {
+      const settled = await Promise.allSettled([ncbiGdsDatasets(accessionOrQuery, capped), ncbiSraStudies(accessionOrQuery, capped)]);
+      results = settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []));
+    }
+    return { source: 'ncbi-direct', query: accessionOrQuery, note: NCBI_DIRECT_NOTE, total: results.length, results };
+  } catch {
+    return null; // NCBI 也不可用 → 抛原始 seqout 错误更有信息量
+  }
 }
 
 // ---------- T2：PubMed 文献联动（NCBI E-utilities 主路 + Europe PMC 兜底） ----------
@@ -1294,6 +1576,170 @@ function extractCards(name: string, payload: Json): Json[] {
   } catch { return []; }
 }
 
+// ---------- 正文↔证据一致性校验（grounding） ----------
+// 模型正文引用的编号必须与本轮证据卡片同源：扫出的编号先与 cards 的 accession/PMID/DOI 集合比对，
+// 卡片外的编号再回源做存在性核验（最多 GROUNDING_VERIFY_LIMIT 个，3s 超时，复用 fetchWithRetry）；
+// 仍无法证实的经 {event:'grounding'} 下发前端警示条，核验摘要同时写入 tool_logs 供审计。
+
+export interface GroundingUnconfirmed {
+  id: string;
+  /** upstream_404 = 回源明确查无此号；unverified = 超出核验配额或无核验通道 */
+  status: 'upstream_404' | 'unverified';
+}
+
+export interface GroundingReport {
+  /** 正文扫到的全部规范编号 */
+  scanned: string[];
+  /** 已在证据卡片中的编号 */
+  grounded: string[];
+  /** 卡片外但回源证实存在的编号 */
+  confirmed: string[];
+  /** 卡片外且回源无法证实的编号 */
+  unconfirmed: GroundingUnconfirmed[];
+}
+
+/** 正文编号扫描模式：normalize 把命中归一到与卡片标识可比的规范形（编号大写、PMID 带前缀、DOI 小写去尾标点） */
+export const SCAN_PATTERNS: { kind: string; re: RegExp; normalize: (m: RegExpExecArray) => string }[] = [
+  { kind: 'gse', re: /\bGSE\d{2,7}\b/gi, normalize: (m) => m[0].toUpperCase() },
+  { kind: 'gsm', re: /\bGSM\d{3,8}\b/gi, normalize: (m) => m[0].toUpperCase() },
+  { kind: 'sra', re: /\b(?:SRP|SRR|SRX|ERP|ERR|ERX|DRP|DRR|DRX)\d{3,}\b/gi, normalize: (m) => m[0].toUpperCase() },
+  { kind: 'bioproject', re: /\bPRJ(?:NA|EB|DB|CA)\d+\b/gi, normalize: (m) => m[0].toUpperCase() },
+  { kind: 'pmid', re: /\bPMID:?\s?(\d{6,9})\b/gi, normalize: (m) => `PMID:${m[1]}` },
+  { kind: 'doi', re: /\b(10\.\d{4,9}\/[^\s"'`()\[\]<>;，。；]+)/g, normalize: (m) => m[1].replace(/[.,:)\]]+$/, '').toLowerCase() },
+];
+
+/** 扫描正文，返回去重后的规范编号（按出现顺序） */
+export function scanAccessions(text: string): string[] {
+  const out = new Set<string>();
+  for (const { re, normalize } of SCAN_PATTERNS) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      out.add(normalize(m));
+      if (m.index === re.lastIndex) re.lastIndex++; // 防零宽匹配死循环
+    }
+  }
+  return [...out];
+}
+
+/** 本轮证据卡片携带的全部可核验标识：accession 大写、PMID 带前缀、DOI 小写（与 scanAccessions 规范形对齐） */
+export function cardIdentifiers(cards: Json[]): Set<string> {
+  const ids = new Set<string>();
+  for (const c of cards) {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) continue;
+    const card = c as Record<string, unknown>;
+    if (typeof card.accession === 'string' && card.accession.trim()) {
+      const acc = card.accession.trim();
+      ids.add(acc.toUpperCase());
+      if (/^10\.\d{4,9}\//.test(acc)) ids.add(acc.toLowerCase()); // 文献卡片的 accession 可能本身就是 DOI
+    }
+    const meta = card.meta;
+    if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+      const m = meta as Record<string, unknown>;
+      if (typeof m.pmid === 'string' && m.pmid.trim()) ids.add(`PMID:${m.pmid.trim()}`);
+      if (typeof m.doi === 'string' && m.doi.trim()) ids.add(m.doi.trim().toLowerCase());
+    }
+  }
+  return ids;
+}
+
+/** 编号 → 存在性核验端点。http 语义：200 存在 / 404 不存在；epmc_hits：看 hitCount。null = 无已知核验通道 */
+export function verifyEndpointFor(id: string): { url: string; interpret: 'http' | 'epmc_hits' } | null {
+  if (/^GSE\d+$/i.test(id)) return { url: `${SEQOUT_BASE_URL}/project/${encodeURIComponent(id)}`, interpret: 'http' };
+  if (/^GSM\d+$/i.test(id)) return { url: `${SEQOUT_BASE_URL}/sample-detail/${encodeURIComponent(id)}`, interpret: 'http' };
+  if (/^(SAMN|SAMD)\d+$/i.test(id)) return { url: `${SEQOUT_BASE_URL}/sample/${encodeURIComponent(id)}`, interpret: 'http' };
+  if (/^(SRP|PRJNA|PRJEB|PRJDB)\d+$/i.test(id)) return { url: `${SEQOUT_BASE_URL}/project/${encodeURIComponent(id)}`, interpret: 'http' };
+  if (/^(SRR|ERR|DRR)\d+$/i.test(id)) return { url: `${SEQOUT_BASE_URL}/run/${encodeURIComponent(id)}`, interpret: 'http' };
+  if (/^PRJCA\d+$/i.test(id)) return { url: `${NGDC_BASE_URL}/gwh/api/public/bioProject/${encodeURIComponent(id)}`, interpret: 'http' };
+  const pmid = /^PMID:?(\d{6,9})$/i.exec(id);
+  if (pmid) {
+    const usp = new URLSearchParams({ query: `EXT_ID:${pmid[1]} AND SRC:MED`, format: 'json', resultType: 'core', pageSize: '1' });
+    return { url: `${EPMC}?${usp.toString()}`, interpret: 'epmc_hits' };
+  }
+  if (/^10\.\d{4,9}\//.test(id)) return { url: `https://api.crossref.org/works/${encodeURIComponent(id)}`, interpret: 'http' };
+  return null; // SRX/ERX/DRX 等实验级编号无稳定直查端点，不硬猜
+}
+
+/** 回源核验单个编号的存在性：exists = 上游确认存在；missing = 上游明确 404/零命中；unknown = 超时/网络错/无通道 */
+export async function verifyAccession(id: string): Promise<'exists' | 'missing' | 'unknown'> {
+  const ep = verifyEndpointFor(id);
+  if (!ep) return 'unknown';
+  try {
+    const json = await fetchWithRetry(ep.url, 3000, 1);
+    if (ep.interpret === 'epmc_hits') {
+      const hits = (json as { hitCount?: unknown })?.hitCount;
+      return typeof hits === 'number' && hits > 0 ? 'exists' : 'missing';
+    }
+    return 'exists';
+  } catch (err) {
+    if (err instanceof Error && /HTTP 404/.test(err.message)) return 'missing';
+    return 'unknown';
+  }
+}
+
+const GROUNDING_VERIFY_LIMIT = 5; // 每次 grounding 最多回源核验的编号数，其余直接列入注记
+
+/** 正文↔证据一致性校验：正文编号 ⊆ 卡片标识 则零警示；卡片外编号回源核验，仍无法证实的进 unconfirmed。
+ *  若所有回源核验都拿不到结论（上游整体不可达），整次降级为不提示——基础设施抖动不应误报模型。 */
+export async function groundingCheck(
+  fullText: string,
+  cards: Json[],
+  opts: { verify?: (id: string) => Promise<'exists' | 'missing' | 'unknown'>; limit?: number } = {},
+): Promise<GroundingReport> {
+  const scanned = scanAccessions(fullText);
+  const known = cardIdentifiers(cards);
+  const report: GroundingReport = { scanned, grounded: scanned.filter((id) => known.has(id)), confirmed: [], unconfirmed: [] };
+  const missing = scanned.filter((id) => !known.has(id));
+  if (missing.length === 0) return report;
+  const verify = opts.verify ?? verifyAccession;
+  const limit = Math.max(0, opts.limit ?? GROUNDING_VERIFY_LIMIT);
+  const toVerify = missing.slice(0, limit);
+  const results = await Promise.all(toVerify.map((id) => verify(id).catch((): 'unknown' => 'unknown')));
+  let sawVerdict = false; // 至少一次核验拿到明确结论（exists/missing）
+  const unconfirmed: GroundingUnconfirmed[] = [];
+  for (let i = 0; i < toVerify.length; i++) {
+    const r = results[i];
+    if (r === 'exists') { sawVerdict = true; report.confirmed.push(toVerify[i]); }
+    else if (r === 'missing') { sawVerdict = true; unconfirmed.push({ id: toVerify[i], status: 'upstream_404' }); }
+  }
+  if (toVerify.length > 0 && !sawVerdict) return report; // 上游全灭 → 不误报
+  for (const id of missing.slice(limit)) unconfirmed.push({ id, status: 'unverified' });
+  report.unconfirmed = unconfirmed;
+  return report;
+}
+// ---------- 跨源联合编排：数据集 → 文献自动补链 ----------
+// 触发条件（全部满足）：本轮 cards 含 GSE/PRJ 级数据集编号；有文献需求信号
+//（本轮 intent_plan 的 needs_literature=true，或用户原文含"发表/论文/文献/paper"类词）；
+// 且模型本轮尚未调用过 literature_search（防重——模型仍是编排主体，这里只是自动补链）。
+// 补链结果并入同一消息的 cards 流（{event:'cards'}），计入 tool_logs 与用量统计。
+
+const LIT_SIGNAL_RE = /发表|论文|文献|刊物|引用|\bpapers?\b|\bpublication|\bliterature\b|\bpubmed\b/i;
+const STUDY_CARD_RE = /^(GSE|PRJNA|PRJEB|PRJDB|PRJCA)\d+$/;
+
+/** cards 中是否含研究级数据集卡片（GSE/PRJ 编号；文献卡片不算） */
+export function cardsContainStudy(cards: Json[]): boolean {
+  for (const c of cards) {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) continue;
+    const card = c as Record<string, unknown>;
+    const meta = card.meta;
+    if (meta && typeof meta === 'object' && !Array.isArray(meta) && (meta as Record<string, unknown>).source === 'literature') continue;
+    if (typeof card.accession === 'string' && STUDY_CARD_RE.test(card.accession.trim().toUpperCase())) return true;
+  }
+  return false;
+}
+
+/** 自动补链判定：有数据集卡片 + 文献需求信号 + 模型本轮未检索过文献 */
+export function needsLiteratureFollowup(opts: {
+  cards: Json[];
+  intentNeedsLiterature: boolean;
+  userText: string;
+  literatureAlreadySearched: boolean;
+}): boolean {
+  if (opts.literatureAlreadySearched) return false;
+  if (!cardsContainStudy(opts.cards)) return false;
+  return opts.intentNeedsLiterature || LIT_SIGNAL_RE.test(opts.userText);
+}
+
 
 export const handler = async (req: Request): Promise<Response> => {
   const requestId = crypto.randomUUID().slice(0, 8);
@@ -1401,10 +1847,12 @@ export const handler = async (req: Request): Promise<Response> => {
 
     const encoder = new TextEncoder();
     const allCards: Json[] = [];
-    const toolLogs: { name: string; label: string; ok: boolean; ms: number }[] = [];
+    const toolLogs: { name: string; label: string; ok: boolean; ms: number; intent?: ResearchIntent; notes?: string[] }[] = [];
     let aborted = false;
     let boostSent = false; // 「下载加速」卡片事件每轮最多发一次
     let fullText = ''; // 各轮助手正文累积（工具轮的前言 + 最终答复），供末尾的兜底卡片检测
+    let sessionIntent: ResearchIntent | null = null; // 本轮 intent_plan 校验通过的意图（供文献自动补链判断）
+    let litSearched = false; // 模型本轮是否已调用过 literature_search（自动补链防重）
     req.signal.addEventListener('abort', () => { aborted = true; });
 
     const readable = new ReadableStream({
@@ -1491,9 +1939,27 @@ export const handler = async (req: Request): Promise<Response> => {
             for (const call of callsArr) {
               const label = labelOf(call.function.name);
               const t0 = Date.now();
+              // 意图规划条目：不调外部 API、不发 SSE tool 事件、不计用量统计。
+              // 校验通过的 IR 落 tool_logs 供审计（前端按名过滤，同 grounding_check 模式），
+              // 归一化结果作为 tool 消息回灌模型，引导后续检索工具参数；校验失败只回灌原因，
+              // 模型可修正重试或直连检索工具——整体退化为现有无意图行为。
+              if (call.function.name === INTENT_TOOL_NAME) {
+                let intentRaw: unknown = null;
+                try { intentRaw = JSON.parse(call.function.arguments || '{}'); } catch { /* 非法 JSON 按校验失败处理 */ }
+                const parsedIntent = parseResearchIntent(intentRaw);
+                if (parsedIntent.ok === false) {
+                  messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ success: false, error: `意图校验失败：${parsedIntent.reason}。可修正后重试 ${INTENT_TOOL_NAME}，或直接调用检索工具。` }) });
+                } else {
+                  sessionIntent = parsedIntent.intent;
+                  toolLogs.push({ name: INTENT_TOOL_NAME, label, ok: true, ms: Date.now() - t0, intent: parsedIntent.intent, notes: parsedIntent.notes });
+                  messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ success: true, data: { intent: parsedIntent.intent, normalized: parsedIntent.notes, note: '意图已记录并完成归一化，后续检索请采用归一化取值（organism 用二名法学名、assay 用 library_strategy 词表值）。' } }) });
+                }
+                continue;
+              }
               usageStats.toolCalls += 1;
               const entry = (usageStats.tools[call.function.name] ??= { count: 0, errors: 0, empties: 0 });
               entry.count += 1;
+              if (call.function.name === LITERATURE_TOOL_NAME) litSearched = true; // 无论成败都算"模型已自查"，自动补链不重复
               send({ event: 'tool', name: call.function.name, label, status: 'running' });
               let resultText: string;
               let callArgs: Record<string, Json | undefined> = {};
@@ -1536,6 +2002,45 @@ export const handler = async (req: Request): Promise<Response> => {
             textBuf = '';
             if (round === 39) send({ delta: lang === 'en' ? '\n\n(Reached the maximum queries for this turn; ask a follow-up to continue.)' : '\n\n（已达到本轮最大查询次数，请追问以继续。）' });
           }
+          // 数据集→文献自动补链：cards 出现 GSE/PRJ 级数据集、有文献需求信号（intent_plan
+          // needs_literature 或用户原文"论文/文献/paper"类词）、且模型本轮未调用过
+          // literature_search 时，平台自动补一次多源文献检索，结果并入同一消息 cards 流。
+          // 模型仍是编排主体——这是兜底补链不是替代；模型已自查过文献则绝不重复。
+          if (!aborted) {
+            const lastUserMsg = [...history].reverse().find((m) => m.role === 'user' && typeof m.content === 'string');
+            const followupQuery = (sessionIntent?.question || lastUserMsg?.content || '').slice(0, 200);
+            if (
+              followupQuery &&
+              needsLiteratureFollowup({
+                cards: allCards,
+                intentNeedsLiterature: sessionIntent?.needs_literature === true,
+                userText: lastUserMsg?.content ?? '',
+                literatureAlreadySearched: litSearched,
+              })
+            ) {
+              const litLabel = labelOf(LITERATURE_TOOL_NAME);
+              const litT0 = Date.now();
+              usageStats.toolCalls += 1;
+              const litEntry = (usageStats.tools[LITERATURE_TOOL_NAME] ??= { count: 0, errors: 0, empties: 0 });
+              litEntry.count += 1;
+              touchStats();
+              send({ event: 'tool', name: LITERATURE_TOOL_NAME, label: litLabel, status: 'running' });
+              try {
+                const payload = wrap(await searchAllLiterature({ query: followupQuery }));
+                const cards = extractCards(LITERATURE_TOOL_NAME, payload);
+                if (cards.length) { allCards.push(...cards); send({ event: 'cards', cards }); }
+                toolLogs.push({ name: LITERATURE_TOOL_NAME, label: litLabel, ok: true, ms: Date.now() - litT0 });
+                send({ event: 'tool', name: LITERATURE_TOOL_NAME, label: litLabel, status: 'done', ms: Date.now() - litT0 });
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                litEntry.errors += 1;
+                usageStats.toolErrors += 1;
+                toolLogs.push({ name: LITERATURE_TOOL_NAME, label: litLabel, ok: false, ms: Date.now() - litT0 });
+                send({ event: 'tool', name: LITERATURE_TOOL_NAME, label: litLabel, status: 'error', ms: Date.now() - litT0, error: message });
+                console.warn(`[${FUNCTION_NAME}] literature followup failed ${requestId}: ${message.slice(0, 200)}`);
+              }
+            }
+          }
           // 兜底推荐：本轮没发过卡片时，看正文是否给出 BioProject / Run 编号——
           // 给了即视为有下载意图，补「下载加速」卡片（正文不写推荐语，卡片由平台渲染）。
           // GEO-only 项目 hasRuns=false 不发；正文出现 SRR 即必有公开 run，直接发（解析不到 PRJ 时 accession 置空）。
@@ -1548,6 +2053,22 @@ export const handler = async (req: Request): Promise<Response> => {
             } else if (/(?:SRR|ERR|DRR)\d{5,}/i.test(fullText)) {
               boostSent = true;
               send({ event: 'polariseq', accession: null });
+            }
+          }
+          // 正文↔证据一致性校验（grounding）：模型正文引用的编号须能在本轮证据卡片中找到，
+          // 找不到的回源核验，仍无法证实的经 {event:'grounding'} 提示用户自行核验；
+          // 核验摘要写入 tool_logs 供审计。校验失败绝不打断主流程（宁可漏报，不可丢回答）。
+          if (!aborted && fullText.trim()) {
+            const g0 = Date.now();
+            try {
+              const report = await groundingCheck(fullText, allCards);
+              toolLogs.push({ name: 'grounding_check', label: '正文编号核验', ok: report.unconfirmed.length === 0, ms: Date.now() - g0 });
+              if (report.unconfirmed.length > 0) {
+                send({ event: 'grounding', unconfirmed: report.unconfirmed, confirmed: report.confirmed });
+                console.warn(`[${FUNCTION_NAME}] grounding ${requestId} unconfirmed=${report.unconfirmed.map((u) => u.id).join(',')}`);
+              }
+            } catch (err) {
+              console.warn(`[${FUNCTION_NAME}] grounding failed ${requestId}: ${err instanceof Error ? err.message : String(err)}`);
             }
           }
           send({ event: 'end', cards: allCards, tools: toolLogs });
@@ -1579,6 +2100,7 @@ denoRuntime?.serve(handler);
 
 function labelOf(name: string): string {
   const map: Record<string, string> = {
+    intent_plan: '意图规划',
     seqout_search: '跨库搜索组学项目',
     seqout_search_geo: '搜索 GEO 数据集',
     seqout_search_sra: '搜索 SRA 记录',
@@ -1605,6 +2127,7 @@ function labelOf(name: string): string {
     seqout_get_platform_totals: '查询平台总量',
     seqout_beacon_info: '查询 Beacon 信息',
     seqout_beacon_runs: '查询 Beacon 运行',
+    ena_search: '检索 ENA 欧洲核酸库',
     literature_search: '搜索多源文献（PubMed / Europe PMC / Crossref / OpenAlex / Semantic Scholar / CORE / arXiv / bioRxiv / medRxiv）',
     ngdc_get_gwh_assembly: '查询 NGDC GWH 组装',
     ngdc_get_gwh_project: '查询 NGDC GWH 项目',

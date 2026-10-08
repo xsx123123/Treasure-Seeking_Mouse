@@ -3,7 +3,7 @@
 // 安全定位：自托管熟人场景——scrypt 存口令哈希 + 随机 token，无速率限制/邮箱验证。
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 
 export function createAccountApi({ dataDir }) {
   mkdirSync(dataDir, { recursive: true });
@@ -48,7 +48,20 @@ export function createAccountApi({ dataDir }) {
   function saveAccount(email) { mark(ACCOUNTS); void email; }
   function saveGuests() { mark(GUESTS); }
 
-  function historyFile(email) { return join(HISTORY_DIR, encodeURIComponent(email) + '.json'); }
+  // email 会拼进 history 文件名（historyFile），而注册正则允许 "../../../etc/passwd@x.com"
+  // 这类值：encodeURIComponent 不编码 '.'，'.'/'..' 会原样落到文件系统。采用方案 a——
+  // email 进入任何路径拼接前做硬校验：拒绝路径分隔符、连续或首尾的 '.'、以及 %2e 变体
+  // （合法邮箱本就不会含这些形态，误伤面为零）；historyFile 再做一次落盘路径 containment 兜底。
+  function isPathSafeEmail(em) {
+    return !/[\\/]/.test(em) && !em.includes('..') && !em.startsWith('.') && !em.endsWith('.') && !/%2e/i.test(em);
+  }
+
+  function historyFile(email) {
+    const file = join(HISTORY_DIR, encodeURIComponent(email) + '.json');
+    // 兜底断言：无论上游校验是否漏网，最终路径必须落在 HISTORY_DIR 之内
+    if (!resolve(file).startsWith(resolve(HISTORY_DIR) + sep)) throw new Error('非法的历史文件路径');
+    return file;
+  }
   function readHistory(email) {
     const f = historyFile(email);
     if (cache.has(f)) return cache.get(f);
@@ -133,6 +146,7 @@ export function createAccountApi({ dataDir }) {
         const { email, password, name } = bodyJson(bodyText);
         const em = str(email, 120).trim().toLowerCase();
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return json(res, 400, { error: '邮箱格式不正确' });
+        if (!isPathSafeEmail(em)) return json(res, 400, { error: '邮箱格式不正确' });
         if (str(password).length < 6) return json(res, 400, { error: '密码至少 6 位' });
         const all = accounts();
         if (all[em]) return json(res, 409, { error: '该邮箱已注册，请直接登录' });

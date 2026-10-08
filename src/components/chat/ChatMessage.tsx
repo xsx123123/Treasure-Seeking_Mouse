@@ -8,12 +8,13 @@ import { ToolTrace, type LiveToolEvent } from "./ToolTrace";
 import { DatasetCardGrid, LiteratureDetailDialog } from "./DatasetCard";
 import { DownloadBoostCard } from "./DownloadBoostCard";
 import { SuggestionBlock, extractFollowups } from "./SuggestionBlock";
+import { GroundingNotice } from "./GroundingNotice";
 import { LiteratureCardPanel } from "./LiteratureCard";
 import { addEvidenceListener, type EvidenceRequest } from "@/lib/evidenceBus";
 import { copyText } from "@/lib/clipboard";
 import { useIsTouch } from "@/hooks/use-touch";
 import { useI18n } from "@/i18n/provider";
-import type { DatasetCard, ToolLog } from "@/services/seqoutChat";
+import type { DatasetCard, GroundingPayload, ToolLog } from "@/services/seqoutChat";
 
 /**
  * 操作按钮组的显隐类：桌面端悬停/聚焦浮现，触摸端常显
@@ -30,6 +31,8 @@ export interface ChatUIMessage {
   toolLogs?: ToolLog[] | null;
   /** 本轮调用过下载链接工具 → 推送 polariseq「下载加速」卡片；accession 为 null 表示未解析到 BioProject 编号 */
   boost?: { accession: string | null } | null;
+  /** grounding 校验结果：正文引用但未在证据卡片/回源核验中证实的编号（服务端 event: grounding） */
+  grounding?: GroundingPayload | null;
   streaming?: boolean;
   liveTools?: LiveToolEvent[];
   error?: string | null;
@@ -89,6 +92,9 @@ export function ChatMessage({
   const [litDetail, setLitDetail] = useState<DatasetCard | null>(null);
   // 文献卡片与「来源 → 命中数」分布：useMemo 保持引用稳定，避免 Markdown memo 失效导致流式重解析
   const litCards = useMemo(() => (msg.cards ?? []).filter((c) => c.meta?.source === "literature"), [msg.cards]);
+  // grounding 核验与意图规划条目写进 tool_logs 仅供审计（持久化到 chat_messages），UI 轨迹里过滤掉：
+  // 它们不是一次"搜索"，留在轨迹里会虚增检索计数、未证实时还会被渲染成红色错误胶囊
+  const visibleToolLogs = useMemo(() => (msg.toolLogs ?? []).filter((l) => l.name !== "grounding_check" && l.name !== "intent_plan"), [msg.toolLogs]);
   const litSources = useMemo<[string, number][]>(() => {
     const m = new Map<string, number>();
     for (const c of litCards) {
@@ -134,14 +140,14 @@ export function ChatMessage({
       <div className="min-w-0 max-w-[92%] flex-1">
         <p className="mb-1 flex items-baseline gap-2 text-[11px] text-muted-foreground/80">
           <span className="font-display font-semibold tracking-wide text-foreground/70">{t("brand.name")}</span>
-          {msg.toolLogs && msg.toolLogs.length > 0 && !msg.streaming ? (
+          {visibleToolLogs.length > 0 && !msg.streaming ? (
             <span className="font-mono opacity-70">
-              {t("msg.searches", { n: msg.toolLogs.length, ms: msg.toolLogs.reduce((a, l) => a + (l.ms ?? 0), 0) })}
+              {t("msg.searches", { n: visibleToolLogs.length, ms: visibleToolLogs.reduce((a, l) => a + (l.ms ?? 0), 0) })}
             </span>
           ) : null}
         </p>
-        {(msg.toolLogs?.length ?? 0) > 0 || (msg.liveTools?.length ?? 0) > 0 ? (
-          <ToolTrace logs={msg.toolLogs ?? []} live={msg.liveTools} litSources={litSources} />
+        {visibleToolLogs.length > 0 || (msg.liveTools?.length ?? 0) > 0 ? (
+          <ToolTrace logs={visibleToolLogs} live={msg.liveTools} litSources={litSources} />
         ) : null}
         {hasBody ? (
           <div className="rounded-xl rounded-tl-sm border border-border bg-card px-4 py-3 shadow-soft">
@@ -165,6 +171,9 @@ export function ChatMessage({
         ) : null}
         {!msg.streaming && msg.cards && msg.cards.length > 0 ? (
           <DatasetCardGrid cards={msg.cards} hostMessageId={msg.id} />
+        ) : null}
+        {!msg.streaming && msg.grounding && msg.grounding.unconfirmed.length > 0 ? (
+          <GroundingNotice unconfirmed={msg.grounding.unconfirmed} />
         ) : null}
         {!msg.streaming && msg.boost ? <DownloadBoostCard accession={msg.boost.accession} /> : null}
         {evidence ? (

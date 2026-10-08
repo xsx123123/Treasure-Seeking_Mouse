@@ -85,6 +85,7 @@ export const zh = {
   "card.gsaMirror": "国内镜像",
   "card.controlled": "受控数据",
   "card.openGsaMirror": "打开 GSA 国内直链",
+  "card.noIdentifier": "⚠ 无核验标识",
 
   // ---- 下载加速卡片 ----
   "boost.title": "下载加速 · Polariseq",
@@ -113,6 +114,10 @@ export const zh = {
   "lit.detailTitle": "文献详情",
   "lit.abstract": "摘要",
   "lit.links": "原文链接",
+
+  // ---- 编号核验警示条（grounding） ----
+  "grounding.title": "编号核验提示",
+  "grounding.notice": "以下编号未在本次检索结果中得到证实，请自行核验：",
 
   // ---- ID 浮层 ----
   "idlink.copyId": "复制 ID",

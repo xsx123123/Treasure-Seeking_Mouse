@@ -402,6 +402,9 @@ function ChatPage(): React.ReactElement {
         onPolariseq: (accession) => {
           patch((m) => ({ ...m, boost: { accession } }));
         },
+        onGrounding: (g) => {
+          patch((m) => ({ ...m, grounding: g }));
+        },
         onEnd: (p) => {
           finalCards = p.cards.length > 0 ? p.cards : finalCards;
           finalTools.push(...p.tools);

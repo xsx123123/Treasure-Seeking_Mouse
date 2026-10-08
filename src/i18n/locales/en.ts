@@ -87,6 +87,7 @@ export const en = {
   "card.gsaMirror": "Domestic mirror",
   "card.controlled": "Controlled",
   "card.openGsaMirror": "Open GSA domestic link",
+  "card.noIdentifier": "⚠ No verifiable ID",
 
   // ---- Download boost card ----
   "boost.title": "Download Boost · Polariseq",
@@ -114,6 +115,10 @@ export const en = {
   "lit.detailTitle": "Paper details",
   "lit.abstract": "Abstract",
   "lit.links": "Links",
+
+  // ---- Accession verification notice (grounding) ----
+  "grounding.title": "Accession verification notice",
+  "grounding.notice": "The following IDs were not confirmed by this round's search results — please verify them yourself:",
 
   // ---- ID 浮层 ----
   "idlink.copyId": "Copy ID",

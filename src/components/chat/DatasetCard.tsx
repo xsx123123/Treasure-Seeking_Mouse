@@ -14,6 +14,12 @@ const NCBI_BASE: Record<string, string> = {
   SRR: "https://trace.ncbi.nlm.nih.gov/Traces/sra/?run=",
   SRX: "https://www.ncbi.nlm.nih.gov/sra/?term=",
   PRJNA: "https://www.ncbi.nlm.nih.gov/bioproject/",
+  PRJEB: "https://www.ebi.ac.uk/ena/browser/view/",
+  PRJDB: "https://www.ncbi.nlm.nih.gov/bioproject/",
+  PRJCA: "https://ngdc.cncb.ac.cn/bioproject/browse/",
+  ERP: "https://www.ebi.ac.uk/ena/browser/view/",
+  ERR: "https://www.ebi.ac.uk/ena/browser/view/",
+  DRP: "https://www.ncbi.nlm.nih.gov/bioproject/",
   DRR: "https://trace.ncbi.nlm.nih.gov/Traces/sra/?run=",
 };
 
@@ -38,10 +44,9 @@ export function litSourceLabel(source: string | undefined): string {
 
 function buildLink(accession: string): string | null {
   if (/^GWH[A-Z0-9]+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/gwh/assembly/${accession.toUpperCase()}`;
-  if (/^PRJCA\d+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/gwh/bioProject/${accession.toUpperCase()}`;
   if (/^SAMC\d+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/gwh/bioSample/${accession.toUpperCase()}`;
   if (/^C_[A-Z]{2}\d+\.\d+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/genbase/sequence/${accession.toUpperCase()}`;
-  const m = accession.match(/^(GSE|GSM|GDS|SRP|SRR|SRX|PRJNA|DRR)\d+$/i);
+  const m = accession.match(/^(GSE|GSM|GDS|SRP|SRR|SRX|PRJNA|PRJEB|PRJDB|PRJCA|ERP|ERR|DRP|DRR)\d+$/i);
   if (!m) return null;
   const base = NCBI_BASE[m[1].toUpperCase()];
   return base ? `${base}${accession.toUpperCase()}` : null;
@@ -56,11 +61,17 @@ const PREFIX_COLORS: Record<string, string> = {
   SRR: "bg-strand/10 text-strand ring-strand/25",
   SRX: "bg-strand/10 text-strand ring-strand/20",
   PRJNA: "bg-strand/10 text-strand ring-strand/20",
+  PRJEB: "bg-strand/10 text-strand ring-strand/20",
+  PRJDB: "bg-strand/10 text-strand ring-strand/20",
+  PRJCA: "bg-strand/10 text-strand ring-strand/20",
+  ERP: "bg-strand/10 text-strand ring-strand/20",
+  ERR: "bg-strand/10 text-strand ring-strand/25",
+  DRP: "bg-strand/10 text-strand ring-strand/20",
   DRR: "bg-strand/10 text-strand ring-strand/25",
 };
 
 function prefixOf(accession: string): string | null {
-  const m = accession.match(/^(GSE|GSM|GDS|SRP|SRR|SRX|PRJNA|DRR)/i);
+  const m = accession.match(/^(GSE|GSM|GDS|SRP|SRR|SRX|PRJNA|PRJEB|PRJDB|PRJCA|ERP|ERR|DRP|DRR)/i);
   return m ? m[1].toUpperCase() : null;
 }
 
@@ -113,6 +124,9 @@ export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostM
           ) : null}
           {gsaPublic ? <span className="shrink-0 rounded bg-helix-soft px-1 py-px text-[9px] font-medium text-helix ring-1 ring-helix/20">{t("card.gsaMirror")}</span> : null}
           {controlled ? <a href={DAC_URL} target="_blank" rel="noreferrer noopener" className="shrink-0 rounded bg-pet-amber/15 px-1 py-px text-[9px] font-medium text-pet-amber ring-1 ring-pet-amber/30">{t("card.controlled")}</a> : null}
+          {!card.accession.trim() ? (
+            <span className="shrink-0 rounded bg-secondary px-1 py-px text-[9px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+          ) : null}
           <a
             href={link ?? undefined}
             target="_blank"
@@ -183,6 +197,9 @@ function LiteratureResultCard({ card }: { card: CardData }): React.ReactElement 
               {litSourceLabel(meta.literature_source)}
             </span>
             {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[9px] text-helix">OA</span> : null}
+            {!meta.pmid && !meta.doi ? (
+              <span className="shrink-0 rounded bg-secondary px-1.5 py-px text-[9px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+            ) : null}
             <span className="font-mono text-[10px] text-muted-foreground">{meta.pmid ? `PMID: ${meta.pmid}` : card.accession}</span>
           </div>
           <h3 className="line-clamp-3 text-[13px] font-semibold leading-snug text-foreground">{card.title}</h3>

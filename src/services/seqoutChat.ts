@@ -31,11 +31,24 @@ export interface ToolLog {
   ms: number;
 }
 
+/** grounding 校验下发的未证实编号（status: upstream_404 = 回源查无此号；unverified = 未核验） */
+export interface GroundingItem {
+  id: string;
+  status: string;
+}
+
+export interface GroundingPayload {
+  unconfirmed: GroundingItem[];
+  confirmed: string[];
+}
+
 export interface StreamHandlers {
   onDelta: (text: string) => void;
   onTool: (evt: { name: string; label: string; status: "running" | "done" | "error"; ms?: number; error?: string }) => void;
   onCards: (cards: DatasetCard[]) => void;
   onPolariseq?: (accession: string | null) => void;
+  /** 正文↔证据一致性校验：正文引用但未在证据卡片/回源核验中证实的编号清单（可选事件，旧服务端不下发） */
+  onGrounding?: (payload: GroundingPayload) => void;
   onEnd: (payload: { cards: DatasetCard[]; tools: ToolLog[] }) => void;
   onError: (message: string) => void;
 }
@@ -163,6 +176,12 @@ export async function requestSeqoutChat(
           else if (obj.event === "tool") handlers.onTool(obj);
           else if (obj.event === "cards" && Array.isArray(obj.cards)) handlers.onCards(obj.cards);
           else if (obj.event === "polariseq") handlers.onPolariseq?.(typeof obj.accession === "string" ? obj.accession : null);
+          else if (obj.event === "grounding" && Array.isArray(obj.unconfirmed)) {
+            handlers.onGrounding?.({
+              unconfirmed: obj.unconfirmed,
+              confirmed: Array.isArray(obj.confirmed) ? obj.confirmed : [],
+            });
+          }
           else if (obj.event === "end") handlers.onEnd({ cards: obj.cards ?? [], tools: obj.tools ?? [] });
           else if (typeof obj.error === "string") handlers.onError(obj.error);
         } catch {
