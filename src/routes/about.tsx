@@ -30,7 +30,7 @@ export const Route = createFileRoute("/about")({
   component: AboutPage,
 });
 
-const REPO = "https://github.com/xsx123123/JZ_Tools/tree/main/src/Treasure-Seeking_Mouse";
+const REPO = "https://github.com/xsx123123/Treasure-Seeking_Mouse";
 const ONLINE_DEMO = "https://render.qmuse.pub/p/muse/2842191818002612/index.html";
 
 // 6 个核心亮点：图标固定，标题/描述按语言取词（与 README「功能一览」逐条对齐）

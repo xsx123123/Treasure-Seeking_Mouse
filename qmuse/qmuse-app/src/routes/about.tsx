@@ -37,7 +37,7 @@ function AboutPage(): React.ReactElement {
 
         <div className="mt-4 flex justify-center">
           <a
-            href="https://github.com/xsx123123/JZ_Tools/tree/main/src/Treasure-Seeking_Mouse"
+            href="https://github.com/xsx123123/Treasure-Seeking_Mouse"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground shadow-sm transition-colors hover:border-helix/50 hover:text-helix"

@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white&style=flat-square" alt="Docker Compose" />
     <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white&style=flat-square" alt="React 19" />
     <img src="https://img.shields.io/badge/LLM-OpenAI 兼容-4D6BFE?style=flat-square" alt="OpenAI 兼容" />
-    <a href="https://github.com/xsx123123/JZ_Tools/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" /></a>
+    <a href="https://github.com/xsx123123/Treasure-Seeking_Mouse/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" /></a>
   </p>
   <p>🚀 <a href="https://render.qmuse.pub/p/muse/2842191818002612/index.html"><strong>在线体验</strong>：https://render.qmuse.pub/p/muse/2842191818002612/index.html</a>（线上部署版本可能落后于仓库最新代码）</p>
   <p>把组学数据与多源文献检索能力封装成「聊天式挖宝」——自然语言提问，大模型自动检索 GEO / SRA / ENA / GSA / NGDC 和九个文献来源，按证据自动对齐相关 GEO 研究与论文，数据卡片 + 文献证据链呈现，附桌宠养成玩法。</p>
@@ -113,5 +113,5 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 
 **作者**：JZHANG | **版本**：GeoMuse_v0.1.1
 
-- GitHub：[仓库](https://github.com/xsx123123/JZ_Tools)
+- GitHub：[仓库](https://github.com/xsx123123/Treasure-Seeking_Mouse)
 - LINUX DO：[公告](https://linux.do/)
