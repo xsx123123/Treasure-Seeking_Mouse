@@ -1,5 +1,5 @@
 // 对话输入区（下铲指挥台）：多行输入 + 模型选择 + 下铲/停止
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Shovel, Square } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { emitPetTyping } from "@/lib/petBus";
@@ -12,6 +12,9 @@ export function Composer({
   disabled,
   onSend,
   onStop,
+  value,
+  onValueChange,
+  welcome = false,
 }: {
   models: string[];
   model: string;
@@ -20,9 +23,11 @@ export function Composer({
   disabled?: boolean;
   onSend: (text: string) => void;
   onStop: () => void;
+  value: string;
+  onValueChange: (value: string) => void;
+  welcome?: boolean;
 }): React.ReactElement {
   const { t } = useI18n();
-  const [value, setValue] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -41,19 +46,19 @@ export function Composer({
   function submit(): void {
     const t = value.trim();
     if (!t || streaming || disabled) return;
-    setValue("");
+    onValueChange("");
     onSend(t);
   }
 
   return (
-    <div className="safe-b border-t border-border bg-background/80 px-4 py-3 backdrop-blur-sm sm:px-6">
+    <div className={welcome ? "w-full" : "safe-b border-t border-border bg-background px-4 py-3 sm:px-6"}>
       <div className="mx-auto max-w-3xl">
-        <div className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 shadow-soft transition-all focus-within:border-miner-green focus-within:ring-2 focus-within:ring-miner-green/20 focus-within:shadow-[0_1px_3px_0_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(21_128_61/0.25)]">
+        <div className="flex items-end gap-2 rounded-lg border border-helix/40 bg-card p-3 shadow-soft transition-colors focus-within:border-helix focus-within:ring-2 focus-within:ring-ring">
           <textarea
             ref={taRef}
-            rows={1}
+            rows={welcome ? 2 : 1}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => onValueChange(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -61,7 +66,8 @@ export function Composer({
               }
             }}
             placeholder={t("composer.placeholder")}
-            className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70"
+            aria-label={t("composer.placeholder")}
+            className="max-h-40 min-h-[40px] min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
             disabled={disabled}
           />
           {streaming ? (
@@ -79,14 +85,14 @@ export function Composer({
               onClick={submit}
               disabled={!value.trim() || disabled}
               title={t("composer.sendAria")}
-              className="flex h-9 shrink-0 items-center gap-1.5 justify-center rounded-lg bg-miner-green px-3 text-[13px] font-medium text-white shadow-sm transition-all hover:bg-miner-green-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-9 shrink-0 items-center gap-1.5 justify-center rounded-lg bg-miner-green px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-all hover:bg-miner-green-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Shovel size={15} />
               <span className="hidden sm:inline">{t("composer.send")}</span>
             </button>
           )}
         </div>
-        <div className="mt-2 flex items-center justify-between px-1 text-[11.5px] text-muted-foreground">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
           <label className="flex items-center gap-1.5">
             <span className="font-mono">model</span>
             <select
@@ -99,7 +105,7 @@ export function Composer({
               ))}
             </select>
           </label>
-          <span className="hidden sm:inline">{t("composer.disclaimer")}</span>
+          <span>{t("composer.disclaimer")}</span>
         </div>
       </div>
     </div>

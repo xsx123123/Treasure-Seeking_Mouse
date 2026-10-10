@@ -43,13 +43,41 @@ export const en = {
   "sidebar.guestNoteLogin": "; sign in to keep history forever and sync the leaderboard",
 
   // ---- Empty state ----
-  "empty.headline": "Research Treasure Mouse · your lab-mate for omics and literature",
+  "empty.headline": "What research question will you explore?",
   "empty.subHeadline":
-    "“No labyrinths, just treasure. Name a topic and Muse dons its miner hat and digs!”",
+    "Find datasets, trace accessions, explore samples and search literature.",
   "empty.intro":
     "Muse's little nose is razor-sharp! It dives into GEO, SRA, ENA, GSA, PubMed and Europe PMC, sniffs out high-impact datasets, chews through cryptic accessions, and brings back related papers, evidence and sample treasures.",
   "empty.groupFit": "For: {caption}",
   "empty.badgeIdle": "Resting",
+  "pet.dismissBubble": "Dismiss Muse's bubble",
+  "empty.sources": "GEO · SRA · ENA · GSA | Traceable sources | Verifiable literature",
+  "empty.discover.title": "Data discovery",
+  "empty.discover.alias": "Explore",
+  "empty.discover.description": "Find public omics datasets for your research question.",
+  "empty.discover.one": "Find high-throughput sequencing data on interferon responses",
+  "empty.discover.two": "Find hepatocyte data related to viral liver infections",
+  "empty.trace.title": "Accession tracing",
+  "empty.trace.alias": "Identify",
+  "empty.trace.description": "Locate original projects and records from an accession.",
+  "empty.trace.one": "Which BioProject does SRR21857241 belong to?",
+  "empty.trace.two": "Which project contains sample GSM4581242?",
+  "empty.interpret.title": "Dataset insights",
+  "empty.interpret.alias": "Take inventory",
+  "empty.interpret.description": "Explore experimental designs, sample groups and metadata.",
+  "empty.interpret.one": "What are the experimental groups in GSE282210?",
+  "empty.interpret.two": "How many samples does GSE136831 contain?",
+  "empty.literature.title": "Literature search",
+  "empty.literature.alias": "Find evidence",
+  "empty.literature.description": "Discover relevant studies, reviews and research evidence.",
+  "empty.literature.one": "Find reviews on signaling pathways related to aging and immunity",
+  "empty.literature.two": "Find transcriptomic studies of immune responses to mRNA vaccines",
+  "sidebar.search": "Search chats",
+  "sidebar.noResults": "No matching chats",
+  "sidebar.today": "Today",
+  "sidebar.yesterday": "Yesterday",
+  "sidebar.week": "Previous 7 days",
+  "sidebar.earlier": "Earlier",
 
   // ---- Empty-state easter egg ----
   "easterEgg.hint": "Poke Muse",
@@ -60,7 +88,7 @@ export const en = {
 
   // ---- Composer ----
   "composer.placeholder":
-    "Tell Muse what to dig, e.g. “find recent Alzheimer's single-cell papers and human brain RNA-seq data”… (Enter to dig)",
+    "Describe your research question, or paste a GSE / GSM / SRR accession…",
   "composer.stop": "Stop generating",
   "composer.send": "Dig for treasure",
   "composer.sendAria": "Dig for treasure",

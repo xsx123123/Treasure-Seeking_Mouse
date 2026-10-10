@@ -852,16 +852,13 @@
     opacity: 1;
     transform: none;
   }
-  .hover-lift,
-  .quest-pill {
+  .hover-lift {
     transition: border-color 0.15s ease, background-color 0.15s ease !important;
   }
-  .hover-lift:hover,
-  .quest-pill:hover {
+  .hover-lift:hover {
     transform: none;
   }
-  .hover-lift::after,
-  .quest-pill::after {
+  .hover-lift::after {
     transition: none;
   }
   .story-link::after {
@@ -872,55 +869,6 @@
   .pet-spin, .pet-walk, .pet-look, .pet-sleep, .pet-heart, .pet-chest-pop,
   .pet-burst, .pet-celebrate, .pet-halo, .pet-banner, .pet-badge-in,
   .pet-hover-bounce, .pet-ears-perk { animation: none; }
-}
-
-/* ---------- 探矿工坊 UI 组件样式 ---------- */
-
-/* Hero 圆润卡片：暖米白底 + 柔和阴影 + 统一大圆角 */
-.hero-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: 0 4px 20px -2px rgb(120 113 108 / 0.08);
-  background: var(--color-card);
-}
-
-/* 探矿任务牌（Actionable Pill）：白底微卡片，hover 上浮 + 金边 + 浅金底 */
-.quest-pill {
-  position: relative;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-card);
-  padding: 0.5rem 0.875rem; /* py-2 px-3.5 */
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
-}
-.quest-pill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 6px 16px -8px rgb(120 113 108 / 0.25);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-.quest-pill:hover {
-  transform: translateY(-2px);
-  border-color: var(--gold);
-  background: var(--gold-light);
-}
-.quest-pill:hover::after {
-  opacity: 1;
-}
-.quest-pill:active {
-  transform: translateY(0);
-}
-.dark .quest-pill {
-  background: var(--color-card);
-}
-.dark .quest-pill:hover {
-  border-color: var(--gold);
-  background: var(--gold-light);
 }
 
 /* 桌宠 hover 立绘：轻微回弹缩放 */

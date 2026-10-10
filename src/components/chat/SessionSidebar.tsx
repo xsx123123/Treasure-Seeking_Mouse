@@ -1,11 +1,9 @@
-// 左侧会话栏：品牌头 / 新对话 CTA / 历史列表 / 重命名 / 删除 /
-// 底部「视觉模式 + 界面语言」分段开关与用户行（登录态/游客态）
-import { useCallback, useState } from "react";
-import { LogIn, LogOut, MessageSquare, Moon, Pencil, Plus, Sun, Trash2, X } from "lucide-react";
+// 左侧会话栏：品牌头、新对话、搜索与分组历史、账号入口。
+import { useState } from "react";
+import { LogIn, LogOut, MessageSquare, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useIsTouch } from "@/hooks/use-touch";
 import mouseAvatar from "@/assets/pet/mouse-wink.webp";
 import { useI18n } from "@/i18n/provider";
-import { readTheme, writeTheme, applyTheme, type Theme } from "@/services/petStore";
 import type { SessionRow } from "@/services/chatStore";
 
 export function SessionSidebar({
@@ -34,22 +32,26 @@ export function SessionSidebar({
   onLogout: () => void;
   storageNote?: string; // 游客存储策略提示（未登录时展示在侧栏底部）
 }): React.ReactElement {
-  const { t, lang, toggleLang } = useI18n();
+  const { t } = useI18n();
+  const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const isTouch = useIsTouch();
-  // 视觉模式分段开关：与对话页同一套存储/应用逻辑
-  const [theme, setTheme] = useState<Theme>(() => readTheme());
-  const apply = useCallback((next: Theme) => {
-    writeTheme(next);
-    applyTheme(next);
-    setTheme(next);
-  }, []);
-  // 分段开关的选项样式（激活态高亮卡片底 + helix 描边）
-  const segCls = (active: boolean) =>
-    `flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11.5px] transition-colors ${
-      active ? "bg-card font-medium text-foreground shadow-sm ring-1 ring-helix/25" : "text-muted-foreground hover:text-foreground"
-    }`;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const week = new Date(today);
+  week.setDate(week.getDate() - 7);
+  const groups = (["today", "yesterday", "week", "earlier"] as const).map((key) => ({
+    key,
+    rows: sessions.filter((session) => {
+      if (!session.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) return false;
+      const time = new Date(session.updated_at).getTime();
+      const group = time >= +today ? "today" : time >= +yesterday ? "yesterday" : time >= +week ? "week" : "earlier";
+      return group === key;
+    }).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)),
+  }));
 
   function commitRename(id: string): void {
     const t = draft.trim();
@@ -83,23 +85,30 @@ export function SessionSidebar({
         <button
           type="button"
           onClick={onNew}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-helix/30 bg-helix-soft/60 px-3 py-2.5 text-[13px] font-medium text-helix shadow-sm transition-all hover:bg-helix-soft hover:ring-1 hover:ring-helix/30 active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-3 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-miner-green-hover"
         >
           <Plus size={15} /> {t("sidebar.newChat")}
-          <span className="text-muted-foreground/80">·</span>
-          <span className="font-normal text-muted-foreground">{t("sidebar.compass")}</span>
         </button>
       </div>
 
-      <div className="mt-3 flex-1 overflow-y-auto px-3 pb-3">
+      <label className="mx-3 mt-3 flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-muted-foreground focus-within:border-helix">
+        <Search size={14} className="shrink-0" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("sidebar.search")} aria-label={t("sidebar.search")} className="min-w-0 w-full bg-transparent text-xs text-foreground outline-none" />
+      </label>
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         {sessions.length === 0 ? (
           <p className="mt-6 text-center text-xs text-muted-foreground/70">{t("sidebar.empty")}</p>
         ) : (
-          <ul className="space-y-1">
-            {sessions.map((s) => (
+          <div className="space-y-4">
+            {groups.every((group) => group.rows.length === 0) && <p className="py-4 text-center text-xs text-muted-foreground">{t("sidebar.noResults")}</p>}
+            {groups.filter((group) => group.rows.length > 0).map((group) => (
+            <section key={group.key}>
+            <h2 className="mb-2 px-2 text-[11px] font-medium text-muted-foreground">{t(`sidebar.${group.key}`)}</h2>
+            <ul className="space-y-1">
+            {group.rows.map((s) => (
               <li key={s.id}>
                 <div
-                  className={`group flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
+                  className={`group flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-2.5 text-[13px] transition-colors ${
                     s.id === activeId
                       ? "bg-card text-foreground shadow-sm ring-1 ring-helix/25"
                       : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
@@ -120,11 +129,11 @@ export function SessionSidebar({
                       className="min-w-0 flex-1 rounded border border-helix/50 bg-background px-1.5 py-0.5 text-[13px] outline-none"
                     />
                   ) : (
-                    <button type="button" onClick={() => onSelect(s.id)} className="min-w-0 flex-1 truncate text-left">
+                    <button type="button" title={s.title} onClick={() => onSelect(s.id)} className="min-w-0 flex-1 truncate text-left">
                       {s.title}
                     </button>
                   )}
-                  <span className={`${isTouch ? "flex" : "hidden group-hover:flex"} shrink-0 items-center gap-1`}>
+                  <span className={`flex shrink-0 items-center gap-1 ${isTouch ? "" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}>
                     <button
                       type="button"
                       title={t("sidebar.rename")}
@@ -148,36 +157,14 @@ export function SessionSidebar({
                 </div>
               </li>
             ))}
-          </ul>
+            </ul>
+            </section>
+            ))}
+          </div>
         )}
       </div>
 
       <div className="space-y-3 border-t border-border px-3 py-3">
-        {/* 视觉模式：白昼 / 夜探矿洞 分段开关 */}
-        <div>
-          <p className="mb-1.5 text-[10.5px] font-medium tracking-wide text-muted-foreground/70">{t("sidebar.visualMode")}</p>
-          <div className="flex rounded-lg border border-border bg-background/60 p-0.5">
-            <button type="button" onClick={() => apply("light")} className={segCls(theme !== "dark")}>
-              <Sun size={12} /> {t("sidebar.day")}
-            </button>
-            <button type="button" onClick={() => apply("dark")} className={segCls(theme === "dark")}>
-              <Moon size={12} /> {t("sidebar.night")}
-            </button>
-          </div>
-        </div>
-        {/* 界面语言：中文 / EN 分段开关（两个词互相翻译，固定文案无需 i18n） */}
-        <div>
-          <p className="mb-1.5 text-[10.5px] font-medium tracking-wide text-muted-foreground/70">{t("sidebar.uiLang")}</p>
-          <div className="flex rounded-lg border border-border bg-background/60 p-0.5">
-            <button type="button" onClick={() => lang !== "zh" && toggleLang()} className={segCls(lang === "zh")}>
-              中文
-            </button>
-            <button type="button" onClick={() => lang !== "en" && toggleLang()} className={segCls(lang === "en")}>
-              EN
-            </button>
-          </div>
-        </div>
-
         {userLabel ? (
           <div className="flex items-center justify-between gap-2 pt-1">
             <span className="min-w-0 truncate text-xs text-muted-foreground" title={userLabel}>

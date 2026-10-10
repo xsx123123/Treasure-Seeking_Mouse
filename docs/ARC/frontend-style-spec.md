@@ -54,28 +54,17 @@
 
 ## 4. 页面区块规范
 
-### 4.1 空态 Hero（`EmptyState.tsx`）
+### 4.1 新会话欢迎区（`EmptyState.tsx`）
 
-- 圆润卡片容器（`.hero-card`），居中，最大宽度 **860px**；整体 **左右排布**，不是居中对齐。
-- **第一行（横排）**：左侧阿寻头像方块（`h-20 w-20`、`rounded-[24px]`、`bg-pet-gold-soft` + `gold-glow` + `ring-1 ring-pet-amber/30`，图 `mouse-base.webp`）；右侧文字块左对齐——主标语在上、副标语在下。
-- **主标语**：`GEO 寻宝鼠 · 你的同门生信探险搭子`——「GEO寻宝」用矿工绿、「鼠」用琥珀金（`text-miner-green` / `text-gold` 点染，不整体染色），`font-display` 22-24px。
-- **副标语**：`"不查迷宫，只挖宝藏。随口说出课题，阿寻戴上矿工帽这就下铲！"`（`text-muted-foreground` 14px）。
-- **状态徽章**：卡片**右上角绝对定位**「休息中」胶囊（`absolute right-4 top-4`）——`rounded-full border-pet-amber/40 bg-pet-gold-soft text-pet-amber-deep` 11px（i18n 键 `empty.badgeIdle`）。
-- **介绍文案**：头像行下方**通栏** `--secondary` 浅米底框（`rounded-xl p-4`），**左对齐** 13.5px。
-- 移动端（<sm）头像与文字改纵向堆叠。
-- **彩蛋**：头像可点击，1.5s 内连点 3 次弹出「鼠鼠我呀」弹窗（`mouse-wink.webp` + `pet-reveal` 入场，平台 Dialog 规范，`easterEgg.*` i18n 键）；每次点击头像回弹（`pet-hover-bounce`，key 重触发）。与右下角桌宠的连戳转圈彩蛋相互独立。
+- 内容宽度最多 820px，采用无外框的纵向布局。品牌行使用 56px 本地阿寻头像、品牌名和研究问题标题，下面只有一句副标题。
+- 新会话的输入框紧接副标题，四项任务入口位于输入框下方；进入对话后，同一个 `Composer` 回到底部。草稿由页面状态持有，布局切换时保留输入。
+- 头像保留 1.5s 内连点 3 次打开彩蛋弹窗的交互。空态隐藏右下角重复的桌宠形象；顶栏设置里的「找回阿寻」可重新显示。
 
-### 4.2 探矿任务牌（示例提问）
+### 4.2 四项能力入口
 
-- **分组标题三件套**（`flex flex-wrap items-center gap-2`）：
-  1. **编号牌**：`01` / `02` / `03` 边框小方牌（`rounded-md border border-border bg-card`，`font-mono` 11px 矿工绿）；
-  2. **组名 + emoji**：`探矿定位 ⛏️` / `验宝鉴宝 💎` / `清点矿藏 📜`（13px 加粗）；
-  3. **「适合：…」场景胶囊**：`rounded-full px-2 py-0.5` 11px，文案来自 `empty.groupFit` + `exampleGroups(lang).caption`（`src/i18n/index.ts`），**按组分色**：01 浅绿（`bg-miner-green-light text-miner-green-hover`）/ 02 浅金（`bg-gold-light text-gold-hover`）/ 03 中性（`bg-secondary text-muted-foreground`）。
-- **示例 chips**：`flex flex-wrap gap-2` 自然宽度横排（`w-fit`，不拉满整行），每条 chip 前置 **琥珀小方点**（`h-1.5 w-1.5 rounded-[2px] bg-gold`）。
-- 每个示例问题是独立 pill 微卡片（`.quest-pill`）：白底、1px `border-border`、`px-3.5 py-2`、圆角 8px。
-- **hover 三联动**：`translateY(-2px)` 上浮 + 边框变琥珀金 + 背景微过渡 `--gold-light`，cursor pointer；右侧浮现 ⛏ 提示。
-- 点击 = 填入输入框并直接发送（`onPick` → `handleSend`）。
-- 示例池每次进入空态**每组随机抽样**（Fisher-Yates，条数 = `show`），本次空态内保持稳定，切语言重新抽样。
+- 数据发现、编号溯源、数据集解读、文献探索组成桌面 2×2、移动单列的网格。每项使用主名称、辅助探险名称、一句说明和小图标；默认卡片高度一致。
+- 点击卡片展开两条示例，`aria-expanded` 表示状态。点击示例只填入输入框并聚焦，用户确认后才发送。卡片的 hover/focus 使用现有主题令牌，保持轻量。
+- 网格后保留低强调度的数据库来源与证据说明；不展示尚未完成的核验结果。
 
 ### 4.3 对话区
 
@@ -83,18 +72,18 @@
 - 工具调用走「实时追踪条」：running/done/error 三态 + 耗时；卡片经 `{"event":"cards"}` 独立通道渲染不瘦身。
 - 正文 Markdown（`md-body`）：GSE/GSM/GO/PMID 编号自动变可点链接（IdLink hover 浮层预取论文元数据）；代码块 rehype-highlight，暗色有专属 hljs 调色板（`oklch`，见 styles.css §暗色覆盖）。
 
-### 4.4 底部输入区（Command Station）
+### 4.4 输入区（Command Station）
 
-- Placeholder 引导语：`随口告诉阿寻你想挖什么，比如："帮我找找阿尔茨海默病相关的人脑 RNA-seq"…（Enter 下铲）`。
+- Placeholder 引导语：`描述你的研究问题，或粘贴 GSE / GSM / SRR 编号……`。欢迎页位于任务卡之前，对话页位于消息流底部。
 - 发送按钮 = 矿工绿「⛏️ 下铲挖宝」实底（hover `--miner-green-hover`）；停止态切换为中断样式。
 - **输入联动**：输入框有字符时经 `petBus.emitPetTyping(true)` 通知桌宠挂「竖起耳朵」跃动 class（`pet-ears-perk`），清空即恢复。
-- 底部免责小字（`text-muted-foreground` 11-12px）：`检索自公共组学与文献库，以原始条目为准`。
+- 底部免责小字在移动端同样可见，随模型选择自然换行。
 
 ### 4.5 侧栏与顶栏
 
-- 侧栏 270px 暖米面板（`bg-panel`）：品牌头（阿寻眨眼头像 + 名称）→ 新建对话 CTA（浅绿底矿工绿字）→ 会话列表（激活行白底 + helix 描边）→ 底部「视觉模式 / 界面语言」分段开关（激活 = 白底卡 + helix 描边 + 轻投影）。
+- 侧栏 270px 面板（`bg-panel`）：品牌头 → 新对话 CTA → 标题搜索 → 今天/昨天/过去 7 天/更早的历史分组 → 登录或账号行。历史按更新时间倒序，标题单行截断并以 `title` 展示全文。
 - 未登录底部：主按钮「登录 / 注册 · 保存聊天记录」+ 副链「不登录，先试试 →」（收起侧栏）；游客存储策略说明小字殿后。**禁止**「以游客身份继续」这类与点击结果不符的文案。
-- 顶栏按钮组：排行榜 🏆 / 统计 📊 / 关于 ⓘ / 🐾 阿寻设置 / 语言 / 主题，统一 `text-muted-foreground` + hover 点亮（各自语义色）。
+- 顶栏按钮组：排行榜 🏆 / 统计 📊 / 关于 ⓘ / 🐾 阿寻设置 / 语言 / 主题，是全局设置的唯一入口；统一 `text-muted-foreground` + hover 点亮（各自语义色）。
 - PC 默认收起为 48px 窄边条（`--rail-icon` 纯色图标，**不用** `text-foreground/x%` 透明度修饰符，见 §7）。
 
 ## 5. 桌宠「阿寻」（TreasureMouse）
@@ -118,7 +107,7 @@
 
 ### 5.2 气泡与台词
 
-- 气泡 = 绝对定位圆角卡 + 朝下尖角（`.pet-bubble`），12s 轮播闲置语录、可点击换下一句；剧情台词（挖宝/提示/睡醒）优先接管。
+- 气泡 = 可换行的绝对定位圆角卡 + 朝下尖角（`.pet-bubble`），可点击换下一句或用关闭按钮隐藏；顶栏设置的「找回阿寻」可重新显示气泡。剧情台词（挖宝/提示/睡醒）优先接管。
 - 气泡、尘土、土堆、星尘、光环等周边全部为 CSS keyframes，暗色均有 `.dark` 覆盖段。
 
 ### 5.3 设置面板（行式规范，参考 docs/2026-10-06_14.04.23.png）

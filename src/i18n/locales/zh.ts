@@ -42,12 +42,40 @@ export const zh = {
   "sidebar.guestNoteLogin": "；登录可永久保存并同步排行榜",
 
   // ---- 空态 ----
-  "empty.headline": "科研寻宝鼠 · 你的同门生信与文献探险搭子",
-  "empty.subHeadline": "“不查迷宫，只挖宝藏。随口说出课题，阿寻戴上矿工帽这就下铲！”",
+  "empty.headline": "今天想探索什么科研问题？",
+  "empty.subHeadline": "找数据、查编号、看样本、搜文献，让每一条发现都有迹可循。",
   "empty.intro":
     "阿寻的小鼻子可灵了！一头扎进 GEO、SRA、ENA、GSA 数据库和 PubMed、Europe PMC 文献库里刨拉半天，不仅能嗅出高分数据集、啃透繁杂编号，还能捞出相关论文与证据链，把数据和文献宝藏一口气叼到你跟前。",
   "empty.groupFit": "适合：{caption}",
   "empty.badgeIdle": "休息中",
+  "pet.dismissBubble": "收起阿寻的气泡",
+  "empty.sources": "GEO · SRA · ENA · GSA | 数据来源可追溯 | 文献证据可核验",
+  "empty.discover.title": "数据发现",
+  "empty.discover.alias": "探矿定位",
+  "empty.discover.description": "从科研问题出发，发现相关公开组学数据。",
+  "empty.discover.one": "寻找干扰素应答相关的高通量测序数据",
+  "empty.discover.two": "查找肝病毒感染相关的肝细胞数据",
+  "empty.trace.title": "编号溯源",
+  "empty.trace.alias": "验宝鉴宝",
+  "empty.trace.description": "输入科研编号，定位原始项目和关联记录。",
+  "empty.trace.one": "SRR21857241 属于哪个 BioProject？",
+  "empty.trace.two": "GSM4581242 这个样本属于哪个项目？",
+  "empty.interpret.title": "数据集解读",
+  "empty.interpret.alias": "清点矿藏",
+  "empty.interpret.description": "解读实验设计、样本分组与相关元数据。",
+  "empty.interpret.one": "GSE282210 的实验分组是什么？",
+  "empty.interpret.two": "GSE136831 包含多少个样本？",
+  "empty.literature.title": "文献探索",
+  "empty.literature.alias": "翻检文献",
+  "empty.literature.description": "探索相关研究、学术文献和科研证据。",
+  "empty.literature.one": "搜索衰老与免疫相关信号通路的综述",
+  "empty.literature.two": "查找 mRNA 疫苗免疫应答的转录组研究",
+  "sidebar.search": "搜索对话",
+  "sidebar.noResults": "没有找到匹配的对话",
+  "sidebar.today": "今天",
+  "sidebar.yesterday": "昨天",
+  "sidebar.week": "过去 7 天",
+  "sidebar.earlier": "更早",
 
   // ---- 空态彩蛋 ----
   "easterEgg.hint": "戳戳阿寻",
@@ -58,7 +86,7 @@ export const zh = {
 
   // ---- 输入区 ----
   "composer.placeholder":
-    "随口告诉阿寻你想挖什么，比如：“找近五年阿尔茨海默病单细胞论文和人脑 RNA-seq 数据”…（Enter 下铲）",
+    "描述你的研究问题，或粘贴 GSE / GSM / SRR 编号……",
   "composer.stop": "停止生成",
   "composer.send": "下铲挖宝",
   "composer.sendAria": "下铲挖宝",

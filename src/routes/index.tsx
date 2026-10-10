@@ -98,6 +98,7 @@ function ChatPage(): React.ReactElement {
   const [activeId, setActiveId] = useState<string | null>(null); // null = 本地临时会话
   const [localId, setLocalId] = useState<string>(() => uid());
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
+  const [composerDraft, setComposerDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [models, setModels] = useState<string[]>([FALLBACK_MODEL]);
   const [model, setModel] = useState(FALLBACK_MODEL);
@@ -327,6 +328,7 @@ function ChatPage(): React.ReactElement {
 
   const startNew = useCallback(() => {
     if (streaming) return;
+    setComposerDraft("");
     setMessages([]);
     if (user) setActiveId(null); // 首条消息发送时再建云端会话
     else setLocalId(uid());
@@ -336,6 +338,7 @@ function ChatPage(): React.ReactElement {
   const selectSession = useCallback(
     (id: string) => {
       if (streaming) return;
+      setComposerDraft("");
       setActiveId(id);
       setDrawerOpen(false);
     },
@@ -558,6 +561,20 @@ function ChatPage(): React.ReactElement {
     />
   );
 
+  const composer = (
+    <Composer
+      models={models}
+      model={model}
+      onModelChange={setModel}
+      streaming={streaming}
+      value={composerDraft}
+      onValueChange={setComposerDraft}
+      welcome={messages.length === 0}
+      onSend={(text) => void handleSend(text)}
+      onStop={() => abortRef.current?.abort()}
+    />
+  );
+
   return (
     <div
       className="bg-grid touch-clean flex overflow-hidden"
@@ -580,18 +597,6 @@ function ChatPage(): React.ReactElement {
           </span>
           {/* 窄边条背景是浅米面板，muted-foreground 太淡近乎看不见；
               用 rail-icon 纯色（见 styles.css：alpha 修饰符的 oklab 描边在 Chromium 有渲染 bug） */}
-          <div className="mt-auto [&_button]:text-rail-icon">
-            <LanguageToggle size={16} />
-          </div>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={theme === "dark" ? t("header.themeDark") : t("header.themeLight")}
-            aria-label={t("header.themeAria")}
-            className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-lg text-rail-icon transition-colors hover:bg-secondary hover:text-pet-amber-deep"
-          >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
         </div>
       ) : (
         <div className="relative hidden w-[270px] shrink-0 md:block">
@@ -620,8 +625,8 @@ function ChatPage(): React.ReactElement {
       ) : null}
 
       {/* 主区 */}
-      <main className="ambient-glow relative flex min-w-0 flex-1 flex-col">
-        <header className="safe-t flex items-center gap-2 border-b border-border bg-panel/70 px-4 py-2.5 backdrop-blur-sm md:px-6">
+      <main className="relative flex min-w-0 flex-1 flex-col">
+        <header className="safe-t flex items-center gap-1 border-b border-border bg-panel/70 px-2 py-2.5 sm:gap-2 sm:px-4 md:px-6">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -630,7 +635,7 @@ function ChatPage(): React.ReactElement {
           >
             <Menu size={18} />
           </button>
-          <h1 className="truncate text-[13.5px] font-medium tracking-tight">
+          <h1 className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
             {activeId
               ? sessions.find((s) => s.id === activeId)?.title ?? t("brand.name")
               : user
@@ -701,9 +706,16 @@ function ChatPage(): React.ReactElement {
           </button>
         </header>
 
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto">
           {messages.length === 0 ? (
-            <EmptyState onPick={(q) => void handleSend(q)} />
+            <EmptyState composer={composer} onPick={(q) => {
+              setComposerDraft(q);
+              requestAnimationFrame(() => {
+                const input = scrollContainerRef.current?.querySelector("textarea");
+                input?.focus({ preventScroll: true });
+                input?.scrollIntoView({ block: "nearest", behavior: "auto" });
+              });
+            }} />
           ) : (
             <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
               {messages.map((m, idx) => (
@@ -720,14 +732,7 @@ function ChatPage(): React.ReactElement {
           )}
         </div>
 
-        <Composer
-          models={models}
-          model={model}
-          onModelChange={setModel}
-          streaming={streaming}
-          onSend={(t) => void handleSend(t)}
-          onStop={() => abortRef.current?.abort()}
-        />
+        {messages.length > 0 ? composer : null}
       </main>
 
       <AuthDialog
@@ -746,7 +751,7 @@ function ChatPage(): React.ReactElement {
       />
 
       {/* 寻宝鼠桌宠 */}
-      <TreasureMouse event={petEvent} />
+      <TreasureMouse event={petEvent} welcome={messages.length === 0} />
 
       {/* 挖宝排行榜：离线本地账号的 id 即邮箱，行键 u:<email> 可直接高亮"我" */}
       <Leaderboard open={boardOpen} onClose={() => setBoardOpen(false)} ownUserId={effUser?.id ?? null} />

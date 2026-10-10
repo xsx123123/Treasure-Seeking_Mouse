@@ -1,7 +1,7 @@
 // 寻宝鼠「阿寻」：积木风桌宠。多造型切换 + 挖宝小剧场（土堆/尘土/宝石入袋）+
 // 连击转圈、爱心飘浮、闲置散步张望、宝箱累计计数、里程碑成就庆祝，可拖拽、右键静默。
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Settings } from "lucide-react";
+import { Settings, X } from "lucide-react";
 import { readPetPos, writePetPos, readPetQuiet, writePetQuiet, readPetSize, readPetAlways, readPetIdleAlive, bumpPokeCount, readTreasureCount, addTreasure, ACHIEVEMENTS, claimAchievement, earnedAchievements, type Achievement, type PetPos } from "@/services/petStore";
 import { onPetSettingsChanged, onPetRecall, onPetQuiet, onPetResetPos, onPetTyping, emitPetSettingsChanged } from "@/lib/petBus";
 import { PetSettingsPanel } from "@/components/pet/PetSettingsPanel";
@@ -84,7 +84,7 @@ interface Burst {
 }
 let burstId = 0;
 
-export function TreasureMouse({ event }: { event: PetEvent | null }): React.ReactElement | null {
+export function TreasureMouse({ event, welcome = false }: { event: PetEvent | null; welcome?: boolean }): React.ReactElement | null {
   const { t, lang } = useI18n();
   const L = petLines(lang);
   const isMobile = useIsMobile();
@@ -92,6 +92,9 @@ export function TreasureMouse({ event }: { event: PetEvent | null }): React.Reac
   const [always, setAlways] = useState<boolean>(() => readPetAlways()); // 一直存在：关掉则闲置自动藏起来
   const [idleAlive, setIdleAlive] = useState<boolean>(() => readPetIdleAlive()); // 闲置时自己活动（冒泡/溜达/入睡）
   const [hidden, setHidden] = useState(false);
+  const [recalled, setRecalled] = useState(false);
+  const [bubbleDismissed, setBubbleDismissed] = useState(false);
+  useEffect(() => { setRecalled(false); }, [welcome]);
   const [panelOpen, setPanelOpen] = useState(false); // 悬浮齿轮设置面板
   const size = isMobile ? Math.min(sizePref, MOBILE_SIZE_CAP) : sizePref; // 实际渲染宽度
   const [quiet, setQuiet] = useState<boolean>(() => readPetQuiet());
@@ -138,6 +141,8 @@ export function TreasureMouse({ event }: { event: PetEvent | null }): React.Reac
       if (readPetAlways()) setHidden(false);
     });
     const offRecall = onPetRecall(() => {
+      setRecalled(true);
+      setBubbleDismissed(false);
       lastAct.current = Date.now();
       if (stateTimer.current) clearTimeout(stateTimer.current);
       writePetQuiet(false);
@@ -521,7 +526,7 @@ export function TreasureMouse({ event }: { event: PetEvent | null }): React.Reac
     else handlePoke();
   };
 
-  if (hidden) return null; // 「一直存在」关闭时的闲置隐藏，经顶栏/设置面板「找回阿寻」恢复
+  if (hidden || (welcome && !recalled)) return null;
 
   if (quiet) {
     return (
@@ -586,15 +591,18 @@ export function TreasureMouse({ event }: { event: PetEvent | null }): React.Reac
         </div>
       ) : null}
       {/* 气泡（点击手动切换语录） */}
-      {bubble ? (
+      {bubble && !bubbleDismissed ? (
+        <div className="pet-bubble absolute -top-2 left-1/2 flex w-[200px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full items-start gap-1 rounded-lg border border-border bg-card p-2 text-[11.5px] text-foreground shadow-soft">
         <button
           type="button"
           onClick={cycleBubble}
-          className="pet-bubble absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl border border-border bg-card px-2.5 py-1 text-[11.5px] text-foreground shadow-soft transition-colors hover:border-pet-amber/60"
+          className="min-w-0 flex-1 text-left leading-relaxed"
         >
           {bubble}
           <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-border bg-card" />
         </button>
+        <button type="button" onClick={() => setBubbleDismissed(true)} aria-label={t("pet.dismissBubble")} title={t("pet.dismissBubble")} className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"><X size={12} /></button>
+        </div>
       ) : null}
 
       {/* 飘浮爱心/星星 */}
