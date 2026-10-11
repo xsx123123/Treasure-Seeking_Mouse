@@ -15,6 +15,8 @@ export const getRouter = () => {
 
   const router = createRouter({
     routeTree,
+    // The platform mounts the standalone app below /treasure-mouse/.
+    basepath: import.meta.env.BASE_URL.replace(/\/$/, '') || '/',
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,

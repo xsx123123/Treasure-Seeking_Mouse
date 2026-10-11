@@ -159,6 +159,7 @@ function ChatPage(): React.ReactElement {
     });
   }, []);
   const abortRef = useRef<AbortController | null>(null);
+  const sendingRef = useRef(false); // 同一帧内的连续点击也只能启动一轮请求
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<ChatUIMessage[]>(messages); // 最新消息快照：异步收尾时读，避免闭包过期
@@ -345,8 +346,10 @@ function ChatPage(): React.ReactElement {
     [streaming],
   );
 
-  async function handleSend(text: string, historyOverride?: ChatUIMessage[]): Promise<void> {
-    if (streaming) return;
+  async function handleSend(text: string, historyOverride?: ChatUIMessage[], restoreOnError = false): Promise<void> {
+    text = text.trim();
+    if (!text || sendingRef.current) return;
+    sendingRef.current = true;
     // historyOverride：重新生成时传入截断后的消息，避免闭包里的全量 messages 把已废弃回答带给模型
     const source = historyOverride ?? messages;
     const history: { role: "user" | "assistant"; content: string }[] = source
@@ -370,7 +373,8 @@ function ChatPage(): React.ReactElement {
       setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? fn(m) : m)));
     }
 
-    await requestSeqoutChat(
+    try {
+      await requestSeqoutChat(
       [...history, { role: "user", content: text }],
       catalogOkRef.current ? model : "", // 目录加载失败时留空，由服务端 LLM_MODEL 兜底
       {
@@ -417,15 +421,22 @@ function ChatPage(): React.ReactElement {
         onError: (message) => {
           setPetEvent(makePetEvent({ type: "error" }));
           patch((m) => ({ ...m, error: message }));
+          if (restoreOnError) setComposerDraft((draft) => draft || text);
         },
       },
       controller.signal,
       lang,
-    );
-
-    patch((m) => ({ ...m, streaming: false, liveTools: undefined, toolLogs: finalTools, cards: finalCards }));
-    setStreaming(false);
-    abortRef.current = null;
+      );
+    } catch {
+      setPetEvent(makePetEvent({ type: "error" }));
+      patch((m) => ({ ...m, error: t("err.interrupted") }));
+      if (restoreOnError) setComposerDraft((draft) => draft || text);
+    } finally {
+      patch((m) => ({ ...m, streaming: false, liveTools: undefined, toolLogs: finalTools, cards: finalCards }));
+      setStreaming(false);
+      abortRef.current = null;
+      sendingRef.current = false;
+    }
 
     // 排行榜统计上报（fire-and-forget，失败静默）
     void bumpStats(
@@ -518,18 +529,20 @@ function ChatPage(): React.ReactElement {
 
   /** 重新挖一次：截断到该助手消息之前，用其前最近一条用户提问 + 截断后的历史重发 */
   function handleRegenerate(id: string): void {
-    if (streaming) return;
+    if (sendingRef.current) return;
     const idx = messages.findIndex((m) => m.id === id);
     if (idx < 0) return;
     let q: string | null = null;
+    let questionIndex = -1;
     for (let i = idx - 1; i >= 0; i--) {
       if (messages[i].role === "user") {
         q = messages[i].content;
+        questionIndex = i;
         break;
       }
     }
     if (!q) return;
-    const truncated = messages.slice(0, idx);
+    const truncated = messages.slice(0, questionIndex);
     setMessages(truncated);
     void handleSend(q, truncated);
   }
@@ -708,14 +721,7 @@ function ChatPage(): React.ReactElement {
 
         <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto">
           {messages.length === 0 ? (
-            <EmptyState composer={composer} onPick={(q) => {
-              setComposerDraft(q);
-              requestAnimationFrame(() => {
-                const input = scrollContainerRef.current?.querySelector("textarea");
-                input?.focus({ preventScroll: true });
-                input?.scrollIntoView({ block: "nearest", behavior: "auto" });
-              });
-            }} />
+            <EmptyState composer={composer} submitting={streaming} onPick={(q) => void handleSend(q, undefined, true)} />
           ) : (
             <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
               {messages.map((m, idx) => (

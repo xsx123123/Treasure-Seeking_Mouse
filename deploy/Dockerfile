@@ -18,7 +18,9 @@ RUN pnpm install --frozen-lockfile
 # 前端构建期变量：同源反代（/chat-api → chat 服务），由 nginx 完成转发
 # VITE_CHAT_API 是构建期固化的，改了必须重新 build
 ARG VITE_CHAT_API=/chat-api
-ENV VITE_CHAT_API=$VITE_CHAT_API
+ARG VITE_BASE_PATH=/
+ENV VITE_CHAT_API=$VITE_CHAT_API \
+    VITE_BASE_PATH=$VITE_BASE_PATH
 # 可选：配 Supabase 兼容实例则恢复登录/云同步/排行榜，不配则纯游客模式
 ARG VITE_SUPABASE_URL=
 ARG VITE_SUPABASE_ANON_KEY=

@@ -131,7 +131,7 @@ export function ChatMessage({
 
   const hasBody = msg.content.length > 0 || msg.streaming;
   const { main, items } = extractFollowups(msg.content);
-  const showActions = !msg.streaming && msg.content.length > 0;
+  const showActions = !msg.streaming && (msg.content.length > 0 || !!msg.error);
   return (
     <div className="group flex gap-2.5">
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-helix-soft text-helix ring-1 ring-helix/20">
@@ -188,9 +188,11 @@ export function ChatMessage({
         ) : null}
         {showActions ? (
           <div className={`mt-1.5 flex items-center gap-0.5 ${isTouch ? ALWAYS_SHOWN : REVEAL_ON_HOVER}`}>
-            <ActionButton label={copied ? t("msg.copied") : t("msg.copyAnswer")} onClick={() => copy(main)}>
-              {copied ? <Check size={13} className="text-helix" /> : <Copy size={13} />}
-            </ActionButton>
+            {msg.content ? (
+              <ActionButton label={copied ? t("msg.copied") : t("msg.copyAnswer")} onClick={() => copy(main)}>
+                {copied ? <Check size={13} className="text-helix" /> : <Copy size={13} />}
+              </ActionButton>
+            ) : null}
             {onRegenerate ? (
               <ActionButton label={t("msg.regenerate")} onClick={() => onRegenerate(msg.id)}>
                 <RotateCcw size={13} />
