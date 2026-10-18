@@ -15,6 +15,7 @@ import {
   cardIdentifiers,
   verifyEndpointFor,
   verifyAccession,
+  verifyPaperMentions,
   groundingCheck,
 } from '../index.ts';
 
@@ -32,10 +33,36 @@ test('scanAccessions: 识别 GSE/GSM/SRR/SRP/PRJNA/PRJCA/PMID/DOI 并归一化',
   assert.ok(ids.includes('10.1038/s41586-020-2649-2'), 'DOI 应小写化并去掉句末标点');
 });
 
+test('verifyPaperMentions: existence verification never claims original data or A/B/C', async () => {
+  const calls: string[] = [];
+  const rows = await verifyPaperMentions([
+    { identifier: 'GSE123', evidence_ids: ['e1'], relationship: 'mention_only', verification: 'not_checked', match_tier: null },
+    { identifier: 'GSE404', evidence_ids: ['e2'], relationship: 'mention_only', verification: 'not_checked', match_tier: null },
+    { identifier: 'GSE999', evidence_ids: ['e3'], relationship: 'original_data', verification: 'not_checked', match_tier: null },
+  ], { verify: async (id) => { calls.push(id); return id === 'GSE123' ? 'exists' : 'missing'; } });
+  assert.deepEqual(calls, ['GSE123', 'GSE404']);
+  assert.deepEqual(rows, [
+    { identifier: 'GSE123', evidenceIds: ['e1'], relationship: 'mention_only', verification: 'exists', matchTier: null },
+    { identifier: 'GSE404', evidenceIds: ['e2'], relationship: 'mention_only', verification: 'missing', matchTier: null },
+  ]);
+});
+
 test('scanAccessions: 去重保序，普通文本不误报', () => {
   assert.deepEqual(scanAccessions('GSE123 与 GSE123 再看 GSE456'), ['GSE123', 'GSE456']);
   assert.deepEqual(scanAccessions('这是一段没有任何编号的正文，version 10.2 也不是 DOI'), []);
   assert.equal(SCAN_PATTERNS.length > 0, true);
+});
+
+test('verifyPaperMentions: bounded requests and upstream exceptions retain unknown', async () => {
+  const mentions = Array.from({ length: 25 }, (_, i) => ({ identifier: `GSE${100 + i}`, evidence_ids: [`e${i}`], relationship: 'mention_only', verification: 'not_checked', match_tier: null }));
+  let calls = 0;
+  const verify = async (): Promise<'unknown'> => { calls++; throw new Error('offline'); };
+  const rows = await verifyPaperMentions(mentions, { verify, limit: 100 });
+  assert.equal(calls, 20);
+  assert.equal(rows.length, 20);
+  assert.ok(rows.every(row => row.verification === 'unknown' && row.matchTier === null));
+  assert.deepEqual(await verifyPaperMentions(mentions, { verify, limit: NaN }), []);
+  assert.equal(calls, 20);
 });
 
 // ---------- cardIdentifiers：证据卡片标识集合 ----------
@@ -104,6 +131,15 @@ test('verifyAccession: 无核验通道的编号 → unknown（不发请求）', 
   t.after(() => { globalThis.fetch = original; });
   assert.equal(await verifyAccession('SRX123456'), 'unknown');
   assert.equal(calls.length, 0, '无通道编号不得发起网络请求');
+});
+
+test('verifyAccession: malformed Europe PMC responses remain unknown rather than missing', async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  for (const hitCount of [undefined, null, '0', -1, 0.5]) {
+    mockFetch(() => new Response(JSON.stringify({ hitCount }), { status: 200 }));
+    assert.equal(await verifyAccession('PMID:32015576'), 'unknown');
+  }
 });
 
 // ---------- groundingCheck：正文↔证据一致性 ----------

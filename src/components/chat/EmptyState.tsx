@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { ArrowUpLeft, BookOpen, Database, Fingerprint, Microscope } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import mouseBase from "@/assets/pet/mouse-base.webp";
 import mouseWink from "@/assets/pet/mouse-wink.webp";
 
@@ -12,10 +12,11 @@ const TASKS = [
   { id: "literature", icon: BookOpen },
 ] as const;
 
-export function EmptyState({ onPick, composer, submitting }: { onPick: (q: string) => void; composer: ReactNode; submitting: boolean }): React.ReactElement {
+export function EmptyState({ onPick, composer, submitting, dialogContainer }: { onPick: (q: string) => void; composer: ReactNode; submitting: boolean; dialogContainer?: HTMLElement }): React.ReactElement {
   const { t } = useI18n();
   const [eggOpen, setEggOpen] = useState(false);
   const clicks = useRef({ count: 0, last: 0 });
+  const avatar = useRef<HTMLButtonElement>(null);
   function poke(): void {
     const now = Date.now();
     clicks.current.count = now - clicks.current.last < 1500 ? clicks.current.count + 1 : 1;
@@ -29,7 +30,7 @@ export function EmptyState({ onPick, composer, submitting }: { onPick: (q: strin
     <div className="mx-auto flex min-h-full w-full max-w-[820px] flex-col px-4 sm:px-6">
       <div className="my-auto flex flex-col gap-5 py-6 sm:py-8">
       <div className="flex items-center gap-3">
-        <button type="button" onClick={poke} title={t("easterEgg.hint")} aria-label={t("easterEgg.hint")} className="h-14 w-14 shrink-0 rounded-lg bg-pet-gold-soft transition-transform active:scale-95">
+        <button ref={avatar} type="button" onClick={poke} title={t("easterEgg.hint")} aria-label={t("easterEgg.hint")} className="h-14 w-14 shrink-0 rounded-lg bg-pet-gold-soft transition-transform active:scale-95">
           <img src={mouseBase} alt={t("pet.alt")} className="h-full w-full object-contain" />
         </button>
         <div className="min-w-0">
@@ -66,11 +67,13 @@ export function EmptyState({ onPick, composer, submitting }: { onPick: (q: strin
       </div>
       <p className="text-center text-[11px] leading-relaxed text-muted-foreground">{t("empty.sources")}</p>
       </div>
-      <Dialog open={eggOpen} onOpenChange={setEggOpen}>
-        <DialogContent className="border-border bg-card text-center sm:max-w-[380px]">
+      <Dialog open={eggOpen} onOpenChange={setEggOpen} modal={!dialogContainer}>
+        <DialogContent portalContainer={dialogContainer} onCloseAutoFocus={dialogContainer ? (event) => {
+          event.preventDefault(); avatar.current?.focus();
+        } : undefined} className="border-border bg-card text-center sm:max-w-[380px]">
           <img src={mouseWink} alt={t("pet.alt")} className="mx-auto h-24 w-24 object-contain" />
           <DialogTitle>{t("easterEgg.title")}</DialogTitle>
-          <p className="text-sm leading-relaxed text-muted-foreground">{t("easterEgg.body")}</p>
+          <DialogDescription className="text-sm leading-relaxed text-muted-foreground">{t("easterEgg.body")}</DialogDescription>
           <button type="button" onClick={() => setEggOpen(false)} className="rounded-lg bg-primary p-3 text-sm text-primary-foreground">{t("easterEgg.close")}</button>
         </DialogContent>
       </Dialog>

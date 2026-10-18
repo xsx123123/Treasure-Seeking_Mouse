@@ -8,6 +8,7 @@
 
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_EN } from './prompts.generated.ts';
 import { INTENT_TARGETS, parseResearchIntent, type ResearchIntent } from './intent.ts';
+import { platformToolAdapter } from './platform-tools.ts';
 export { SYSTEM_PROMPT, SYSTEM_PROMPT_EN };
 
 // 环境变量（Deno / Node 通用；本地自托管时在 server/.env 或进程 env 覆盖）：
@@ -1668,13 +1669,50 @@ export async function verifyAccession(id: string): Promise<'exists' | 'missing' 
     const json = await fetchWithRetry(ep.url, 3000, 1);
     if (ep.interpret === 'epmc_hits') {
       const hits = (json as { hitCount?: unknown })?.hitCount;
-      return typeof hits === 'number' && hits > 0 ? 'exists' : 'missing';
+      if (typeof hits !== 'number' || !Number.isSafeInteger(hits) || hits < 0) return 'unknown';
+      return hits > 0 ? 'exists' : 'missing';
     }
     return 'exists';
   } catch (err) {
     if (err instanceof Error && /HTTP 404/.test(err.message)) return 'missing';
     return 'unknown';
   }
+}
+
+export type PaperMentionVerification = {
+  identifier: string;
+  evidenceIds: string[];
+  relationship: 'mention_only';
+  verification: 'exists' | 'missing' | 'unknown';
+  matchTier: null;
+};
+
+/**
+ * Verify identifiers extracted from a paper without upgrading them to original data.
+ * Existence at an upstream endpoint is not evidence that the paper used that record;
+ * the platform must supply stronger relation evidence before assigning A/B/C.
+ */
+export async function verifyPaperMentions(
+  mentions: unknown,
+  opts: { verify?: (id: string) => Promise<'exists' | 'missing' | 'unknown'>; limit?: number } = {},
+): Promise<PaperMentionVerification[]> {
+  if (!Array.isArray(mentions)) return [];
+  const verify = opts.verify ?? verifyAccession;
+  const requestedLimit = opts.limit ?? 20;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(0, Math.min(20, Math.floor(requestedLimit))) : 0;
+  const out: PaperMentionVerification[] = [];
+  for (const item of mentions.slice(0, limit)) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const identifier = typeof row.identifier === 'string' ? row.identifier.trim() : '';
+    const evidenceIds = Array.isArray(row.evidence_ids) && row.evidence_ids.every((id): id is string => typeof id === 'string' && id.length <= 128)
+      ? [...new Set(row.evidence_ids)] : [];
+    // Only the offline index's conservative shape is accepted as input.
+    if (!identifier || identifier.length > 256 || !evidenceIds.length || row.relationship !== 'mention_only' || row.verification !== 'not_checked' || row.match_tier !== null) continue;
+    const verification = await verify(identifier).catch((): 'unknown' => 'unknown');
+    out.push({ identifier, evidenceIds, relationship: 'mention_only', verification, matchTier: null });
+  }
+  return out;
 }
 
 const GROUNDING_VERIFY_LIMIT = 5; // 每次 grounding 最多回源核验的编号数，其余直接列入注记
@@ -1833,6 +1871,7 @@ export const handler = async (req: Request): Promise<Response> => {
     }
 
     const history = (body.messages || []) as ChatMsg[];
+    const platform = platformToolAdapter(req, body, envGet('CYGNUSX_TOOL_CALLBACK_URL') || '');
     const model = (body.model as string) || DEFAULT_MODEL;
     const lang = body.lang === 'en' ? 'en' : 'zh';
     const systemPrompt = lang === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT;
@@ -1880,7 +1919,7 @@ export const handler = async (req: Request): Promise<Response> => {
               signal: llmSignal,
               headers: { Authorization: `Bearer ${projectServiceAK}`, 'Content-Type': 'application/json' },
               // stream_options.include_usage：让网关在流末尾回传 token 用量（统计面板数据源）
-              body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true }, tools: TOOL_DEFS, tool_choice: 'auto' }),
+              body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true }, tools: [...TOOL_DEFS, ...platform.tools], tool_choice: 'auto' }),
             });
             if (!llmResp.ok) {
               const errText = await llmResp.text();
@@ -1966,7 +2005,10 @@ export const handler = async (req: Request): Promise<Response> => {
               let toolPayload: Json | null = null;
               try {
                 callArgs = JSON.parse(call.function.arguments || '{}') as Record<string, Json | undefined>;
-                const payload = await executeTool(call.function.name, callArgs);
+                const payload = (platform.has(call.function.name)
+                  ? await platform.call(call.function.name, callArgs, req.signal)
+                  : await executeTool(call.function.name, callArgs)) as Json;
+                if (platform.has(call.function.name)) send({ event: 'platform_tool', result: payload });
                 toolPayload = payload;
                 if (isBusinessEmpty(payload)) entry.empties += 1; // 空矿 ≠ 失败，分开统计
                 const cards = extractCards(call.function.name, payload);

@@ -3,6 +3,7 @@
 // 读写走 petStore（localStorage），变更经 petBus 通知桌宠即时生效；桌宠侧改动也经同一总线回同步。
 import { useEffect, useState } from "react";
 import { EyeOff, Infinity as InfinityIcon, LocateFixed, Maximize2, Minimize2, PawPrint, Ruler, Sparkles } from "lucide-react";
+import { usePresentation } from "@/presentation-context";
 import { useI18n } from "@/i18n/provider";
 import {
   PET_SIZE_DEFAULT, PET_SIZE_MAX, PET_SIZE_MIN, PET_SIZE_STEP,
@@ -36,7 +37,8 @@ const rowIcon = "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg
 const divider = <div className="border-t border-border/70" />;
 
 export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; onRecall?: () => void }): React.ReactElement {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const presentation = usePresentation();
   const [size, setSize] = useState<number>(() => readPetSize());
   const [always, setAlways] = useState<boolean>(() => readPetAlways());
   const [idleAlive, setIdleAlive] = useState<boolean>(() => readPetIdleAlive());
@@ -200,7 +202,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
           {t("pet.settings.treasure", { n: readTreasureCount() })}
         </p>
         <p className="mt-1.5 text-center text-[10.5px] leading-snug text-muted-foreground/60">
-          {t("pet.settings.note")}
+          {presentation ? (lang === "zh" ? "这些偏好仅在当前模块打开期间保留。" : "These preferences last while this module is open.") : t("pet.settings.note")}
         </p>
       </div>
     </div>

@@ -4,6 +4,7 @@
 //   2) pnpm run server        → http://localhost:8787
 //   3) 前端 .env.local 加 VITE_CHAT_API=http://localhost:8787，pnpm run dev
 import { createServer } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -57,6 +58,15 @@ setInterval(() => {
 }, 15_000).unref();
 
 const PORT = Number(process.env.CHAT_API_PORT || 8787);
+const PLATFORM_ONLY = /^(1|true|yes)$/i.test(process.env.TREASURE_MOUSE_PLATFORM_ONLY || 'false');
+const INTERNAL_TOKEN = process.env.TREASURE_MOUSE_INTERNAL_TOKEN || '';
+
+function tokenMatches(value) {
+  if (!INTERNAL_TOKEN || typeof value !== 'string') return false;
+  const expected = Buffer.from(INTERNAL_TOKEN);
+  const actual = Buffer.from(value);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
 // 监听地址：默认仅本机回环（宿主机裸跑 + 宿主机 nginx 反代时不暴露公网）；
 // Docker 容器内必须显式设 CHAT_API_HOST=0.0.0.0（compose 已配），否则容器间网络不可达
 const HOST = process.env.CHAT_API_HOST || '127.0.0.1';
@@ -90,12 +100,38 @@ createServer(async (req, res) => {
       headers[k] = Array.isArray(v) ? v.join(', ') : v;
     }
     const pathname = new URL(req.url, `http://localhost:${PORT}`).pathname;
+    if (PLATFORM_ONLY && pathname !== '/cygnusx/discovery' && pathname !== '/stats') {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'platform_only' }));
+      return;
+    }
+    if (pathname === '/cygnusx/discovery') {
+      if (req.method !== 'POST') {
+        res.writeHead(405, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'method_not_allowed' }));
+        return;
+      }
+      if (!tokenMatches(req.headers['x-cygnusx-internal-token'])) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'unauthorized' }));
+        return;
+      }
+      // The platform has already authenticated and bound the principal/project/session.
+      // These headers are observability context only; the Node runtime never authorizes
+      // access from them and never receives a browser JWT.
+      headers['x-chat-key'] = process.env.CHAT_SHARED_SECRET || '';
+      headers['x-stats-actor'] = req.headers['x-cygnusx-principal'] || '';
+      headers['x-cygnusx-platform-tools'] = 'trusted';
+    } else {
+      // An external caller cannot assert the internal trust marker.
+      delete headers['x-cygnusx-platform-tools'];
+    }
     if (ACCOUNT_ROUTES.some((r) => pathname.startsWith(r))) {
       for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v); // dev 跨域（3015 → 8788）需要
       const handled = await accountApi(req, res, pathname, Buffer.concat(chunks).toString('utf8'));
       if (handled !== false) return;
     }
-    const request = new Request(`http://localhost:${PORT}${req.url}`, {
+    const request = new Request(`http://localhost:${PORT}${pathname === '/cygnusx/discovery' ? '/' : req.url}`, {
       method: req.method,
       headers,
       body: chunks.length && req.method !== 'GET' && req.method !== 'HEAD' ? Buffer.concat(chunks) : undefined,

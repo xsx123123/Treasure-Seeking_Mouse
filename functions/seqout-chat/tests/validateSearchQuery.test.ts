@@ -8,13 +8,9 @@
 // 运行：npm test（已随根目录测试套件执行）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 
 import { validateSearchQuery } from '../index.ts';
 
-const FUNCTION_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 test('validateSearchQuery: 正常检索词原样通过（中英/带连字符/自动 trim）', () => {
   assert.equal(validateSearchQuery('lung adenocarcinoma'), 'lung adenocarcinoma');
@@ -45,25 +41,29 @@ test('validateSearchQuery: 纯符号串拒绝并给出关键词示例', () => {
   }
 });
 
-function bootFunction(env: Record<string, string>) {
-  const child = spawnSync(process.execPath, ['-e', "import('./index.ts').then(() => {})"], {
-    cwd: FUNCTION_DIR,
-    env: { ...process.env, ...env },
-    encoding: 'utf8',
-  });
-  assert.equal(child.status, 0, `子进程应正常退出：${child.stderr}`);
-  return child.stderr;
+let bootCounter = 0;
+async function bootFunction(secret?: string): Promise<string> {
+  const previous = process.env.CHAT_SHARED_SECRET;
+  const warn = console.warn;
+  const warnings: string[] = [];
+  try {
+    if (secret === undefined) delete process.env.CHAT_SHARED_SECRET;
+    else process.env.CHAT_SHARED_SECRET = secret;
+    console.warn = (...args: unknown[]) => { warnings.push(args.join(' ')); };
+    // Fresh module evaluation tests startup without a sandbox-forbidden spawnSync.
+    await import(new URL(`../index.ts?startup-test=${++bootCounter}`, import.meta.url).href);
+    return warnings.join('\n');
+  } finally {
+    console.warn = warn;
+    if (previous === undefined) delete process.env.CHAT_SHARED_SECRET;
+    else process.env.CHAT_SHARED_SECRET = previous;
+  }
 }
 
-test('启动告警：未配置 CHAT_SHARED_SECRET 时打印醒目警告，配置后静默', () => {
-  // 未配置：从子进程环境里显式删除该变量（env 传 undefined 会被字符串化，不能模拟"未配置"）
-  const envWithout = { ...process.env };
-  delete envWithout.CHAT_SHARED_SECRET;
-  const child = spawnSync(process.execPath, ['-e', "import('./index.ts').then(() => {})"], { cwd: FUNCTION_DIR, env: envWithout, encoding: 'utf8' });
-  assert.equal(child.status, 0, `子进程应正常退出：${child.stderr}`);
-  assert.match(child.stderr, /CHAT_SHARED_SECRET/);
-  assert.match(child.stderr, /无鉴权/);
-
-  const withSecret = bootFunction({ CHAT_SHARED_SECRET: 'test-secret' });
+test('启动告警：未配置 CHAT_SHARED_SECRET 时打印醒目警告，配置后静默', async () => {
+  const withoutSecret = await bootFunction();
+  assert.match(withoutSecret, /CHAT_SHARED_SECRET/);
+  assert.match(withoutSecret, /无鉴权/);
+  const withSecret = await bootFunction('test-secret');
   assert.doesNotMatch(withSecret, /未配置 CHAT_SHARED_SECRET/);
 });

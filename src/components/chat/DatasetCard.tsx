@@ -3,14 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, ExternalLink, FileText } from "lucide-react";
 import type { DatasetCard as CardData } from "@/services/seqoutChat";
 import { requestEvidence } from "@/lib/evidenceBus";
+import { usePresentation } from "@/presentation-context";
 import { useI18n } from "@/i18n/provider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const NCBI_BASE: Record<string, string> = {
   GSE: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
-  GSM: "https://www.ncbi.nlm.nih.gov/geo/samples/",
-  GDS: "https://www.ncbi.nlm.nih.gov/geo/datasets/",
-  SRP: "https://www.ncbi.nlm.nih.gov/bioproject/",
+  GSM: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
+  GDS: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
+  SRP: "https://www.ncbi.nlm.nih.gov/sra/?term=",
   SRR: "https://trace.ncbi.nlm.nih.gov/Traces/sra/?run=",
   SRX: "https://www.ncbi.nlm.nih.gov/sra/?term=",
   PRJNA: "https://www.ncbi.nlm.nih.gov/bioproject/",
@@ -19,7 +20,7 @@ const NCBI_BASE: Record<string, string> = {
   PRJCA: "https://ngdc.cncb.ac.cn/bioproject/browse/",
   ERP: "https://www.ebi.ac.uk/ena/browser/view/",
   ERR: "https://www.ebi.ac.uk/ena/browser/view/",
-  DRP: "https://www.ncbi.nlm.nih.gov/bioproject/",
+  DRP: "https://www.ebi.ac.uk/ena/browser/view/",
   DRR: "https://trace.ncbi.nlm.nih.gov/Traces/sra/?run=",
 };
 
@@ -90,6 +91,7 @@ function onLiterature(accession: string, hostMessageId?: string): void {
 
 export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostMessageId?: string }): React.ReactElement {
   const { t } = useI18n();
+  const presentation = usePresentation();
   if (card.meta?.source === "literature") return <LiteratureResultCard card={card} />;
   const link = buildLink(card.accession);
   const prefix = prefixOf(card.accession);
@@ -175,6 +177,7 @@ export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostM
           ))}
         </div>
       ) : null}
+      {presentation?.onResearchAction && /^(GSE|GSM|SRR|ERR|DRR|SRX|SRP|PRJNA|PRJEB|PRJDB)\d+$/i.test(card.accession) ? <button type="button" disabled={!presentation.workflow?.allowedTools?.includes('dataset.discover')} className="mt-2 rounded-md border border-helix/25 bg-helix-soft px-2 py-1 text-[11px] text-helix disabled:opacity-40" onClick={() => presentation.onResearchAction?.({ type: 'dataset.inspect', discoveryRef: card.accession })}>{t('workflow.inspect')}</button> : null}
       {mirrorUrl && gsaPublic ? (
         <a href={mirrorUrl} target="_blank" rel="noreferrer noopener" className="mt-1.5 inline-flex text-[10.5px] text-helix story-link">{t("card.openGsaMirror")}</a>
       ) : null}

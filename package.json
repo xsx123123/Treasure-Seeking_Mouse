@@ -10,6 +10,7 @@
     "preview": "vite preview --port 3015 --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "node --test functions/seqout-chat/tests/*.test.ts server/tests/*.test.mjs",
+    "test:paper": "node --test --test-isolation=none src/island/tests/*.test.ts scripts/tests/*.test.mjs",
     "test:live": "SEQOUT_LIVE=1 node --test functions/seqout-chat/tests/*.test.ts server/tests/*.test.mjs",
     "sync:prompts": "node functions/seqout-chat/scripts/sync-prompts.mjs"
   },

@@ -82,6 +82,14 @@ browser ──→ web(nginx:80) ──┬─ /           → 前端静态产物�
 
 ## 七、近期演进（2026-10-05 审计之后）
 
+- CygnusX BioOps Phase 2：保留本 Node/TS Runtime 与原检索工具。在平台认证的
+  `/cygnusx/discovery` 请求上，从平台 capability catalog 投影 read/prepare 工具，
+  通过固定 `CYGNUSX_TOOL_CALLBACK_URL` 回调主后端 Gateway。有限委托只存在请求适配器中，
+  不进入模型消息；服务端验证 issuer/audience/TTL/用户/会话/项目和 Redis nonce。
+  新 SSE `platform_tool` 事件增量兼容旧客户端。下载/分析/取消仍由平台后端门禁拒绝，
+  真实 Node↔平台 Transport 未验收；不可把隔离 fetch 测试称为上线。详见主仓
+  `ARCHITECTURE_DESIGN/CygnusX_agent_tool_gateway.md`。
+
 | 日期 | 变更 | 要点 |
 |---|---|---|
 | 10-06 | 自托管账号体系 | Account API + localAuth + AuthDialog 离线分支；登录合并历史、游客成绩并入账号榜；顶栏 guest 徽标移除，登录入口文案改为「登录 / 注册」+「不登录，先试试」 |
@@ -91,9 +99,23 @@ browser ──→ web(nginx:80) ──┬─ /           → 前端静态产物�
 | 10-06 | 关于页同步 README | 新增「阿寻能挖的数据库」七库一节、页脚版本号 |
 | 10-06 | 样式规范成文 | `docs/ARC/frontend-style-spec.md`，token/组件/动效/硬约束全收录 |
 
+### CygnusX 展示 Island 隔离实验（未发布）
+
+`src/island/index.tsx` 提供 mount/update/unmount，仅复用 EmptyState、Composer、本地鼠形象与受控 i18n；未导入 routes、账号、历史或网络服务。Vue PoC 位于父仓 `frontend/poc/treasure-island/`，单向传入非敏感 ViewModel 与回调。ShadowRoot 隔离非字体 CSS，Portal 定位于主题 wrapper；字体规则 refcount 管理并在最终卸载时释放。共用组件新增可选参数，独立 SPA 默认行为不变。
+
+独立 library 与对照页配置为 `vite.island.config.ts`、`vite.island-reference.config.ts`，产物只写 `/tmp`。这不是独立 SPA 的新部署入口。DOM/编译通过不代表视觉通过：当前 Chromium 被运行环境 socket 权限阻断，截图、字体、Focus 与窄屏验收未完成，G-P1A 未通过；父仓报告 `docs/implementation/treasure-react-island-poc.md` 记录边界。非空消息仍拒绝进入此欢迎页 PoC，完整消息/卡片投影属下一阶段。
+
 ## 八、已知取舍与边界
 
 - **安全定位**：自托管面向熟人场景——scrypt + token 无速率限制；`CHAT_SHARED_SECRET` 只挡爬虫级滥用。公网开放部署前应叠加反代限流（审计报告 §三-F/E 的宿主机 nginx 模板可直接用）。
 - **Meoo/Deno 平台**：Edge Function 保持平台可移植（`envGet` 双读 Deno/Node 环境），但文件系统类能力（统计/账号持久化）仅自托管 Node 路径可用，平台实例重启归零。
 - **纯游客模式**：消息仅存 localStorage（50 条 / 7 天滚动），跨设备不可用——这是产品取舍而非缺陷，登录即解。
 - **QMuse 迁移副本**（`qmuse/qmuse-app/`）已停止维护（2026-10-06 起），保留作历史归档，新改动不再同步。
+
+### 平台完整展示入口补充（2026-10-15）
+
+`src/island/FullPresentation.tsx` 组合原 ChatMessage/Markdown、DatasetCard、文献证据、ToolTrace、SuggestionBlock、GroundingNotice、DownloadBoostCard、侧栏、桌宠、设置、统计/排行榜和关于内容。Vue 提供会话/项目/消息及业务回调；PresentationContext 负责文献服务和 ShadowRoot Portal、主题、视口适配。原 SPA 默认行为保留。
+
+island 构建 alias 将旧网络服务替换为平台适配入口，将 petStore/linkHint/treasureBurst 的本地持久化替换成模块内存版本。统计、排行榜服务目前不可用而非返回模拟数据。字体、原样式、插图和桌宠资源继续由原构建生成；不把旧身份或聊天客户端带进平台。
+
+平台展示入口增加可选 ResearchActionV1/ResearchWorkflowView；DatasetCard 仅发数据核验 intent，ResearchWorkflowPanel 用原样式Dialog显示公开候选、导入/分析Prepare和真实记录。全部认证、网络、项目推导、审批与导航由Vue适配器负责；原SPA没有平台callback时不显示这些动作。统计内核、Node检索、原账户与路由均未改写。运行与视觉验收仍独立BLOCKED。

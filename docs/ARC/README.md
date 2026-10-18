@@ -15,6 +15,7 @@
 | 改任何 UI/文案/主题 | `frontend-style-spec.md` 全文 | `src/styles.css` + 对应组件 |
 | 改桌宠行为/造型/设置 | `frontend-style-spec.md` §5 + 架构文档 §五 | `src/components/pet/*` |
 | 评估当前架构与启动可行性 | `platform-kickstart.md`（准备清单、功能基线与验收表） | — |
+| 论文解读、数据溯源与分析接入 | [审计与阶段边界](paper-to-analysis-audit.md)、[ADR](paper-to-analysis-adr.md)、[实施与测试](paper-to-analysis-validation.md) | `scripts/paper_evidence.py`；平台接口仍待接入 |
 
 ## 1. 代码地图（任务 → 位置 → 关键文件）
 

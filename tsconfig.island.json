@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["src/island/**/*", "vite.island.config.ts", "vite.island-reference.config.ts"]
+}

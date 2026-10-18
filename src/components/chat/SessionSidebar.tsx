@@ -18,6 +18,7 @@ export function SessionSidebar({
   onGuestTry,
   onLogout,
   storageNote,
+  platform = false,
 }: {
   sessions: SessionRow[];
   activeId: string | null;
@@ -30,9 +31,10 @@ export function SessionSidebar({
   /** 「不登录，先试试」：收起侧栏/抽屉，直接以游客身份用（与 onLogin 并列的逃逸口） */
   onGuestTry?: () => void;
   onLogout: () => void;
+  platform?: boolean;
   storageNote?: string; // 游客存储策略提示（未登录时展示在侧栏底部）
 }): React.ReactElement {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -147,7 +149,7 @@ export function SessionSidebar({
                     </button>
                     <button
                       type="button"
-                      title={t("sidebar.delete")}
+                      title={platform ? (lang === "zh" ? "归档会话" : "Archive session") : t("sidebar.delete")}
                       onClick={() => onDelete(s.id)}
                       className="rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
                     >
@@ -165,7 +167,7 @@ export function SessionSidebar({
       </div>
 
       <div className="space-y-3 border-t border-border px-3 py-3">
-        {userLabel ? (
+        {!platform && userLabel ? (
           <div className="flex items-center justify-between gap-2 pt-1">
             <span className="min-w-0 truncate text-xs text-muted-foreground" title={userLabel}>
               {userLabel}
@@ -178,7 +180,7 @@ export function SessionSidebar({
               <LogOut size={12} /> {t("sidebar.logout")}
             </button>
           </div>
-        ) : onLogin ? (
+        ) : !platform && onLogin ? (
           <div className="space-y-1.5">
             <button
               type="button"
@@ -207,7 +209,7 @@ export function SessionSidebar({
 }
 
 export function MobileDrawerHeader({ onClose }: { onClose: () => void }): React.ReactElement {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   return (
     <div className="flex items-center justify-between border-b border-border px-4 py-3">
       <span className="text-sm font-semibold">{t("sidebar.listTitle")}</span>

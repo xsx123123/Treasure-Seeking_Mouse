@@ -1,3 +1,4 @@
+import { usePresentation } from '@/presentation-context';
 // v2.1 正文内嵌编号链接：L1 直达原始页 + L2 浮层（自动预取论文 + 复制 ID / 查看证据链）
 // 桌面端 hover 300ms 出浮层（HoverCard）；触摸端点击出浮层（Popover）——触屏无 hover，
 // HoverCard 在触屏上点击会直接跳转、浮层永不出现，故按输入设备自动切换容器，浮层内容完全共用。
@@ -30,6 +31,8 @@ export function IdLink({
   hostMessageId?: string;
 }): React.ReactElement {
   const { t, lang } = useI18n();
+  const presentation = usePresentation();
+  const literatureLoader = presentation?.loadLiterature ?? fetchLiterature;
   const [copied, setCopied] = useState(false);
   const isTouch = useIsTouch();
   // 新用户发现性提示：全站只展示一次（见 lib/linkHint）。消费必须走 effect 且受 AllowLinkHintContext
@@ -66,15 +69,15 @@ export function IdLink({
   const loadLiterature = useCallback(() => {
     if (litState !== "idle") return; // 已加载/加载中不重复请求
     setLitState("loading");
-    void fetchLiterature(match.type, match.id).then((card) => {
+    void literatureLoader(match.type, match.id).then((card) => {
       setLit(card);
       setLitState("done");
       if (card.status === "ok" && hintedRef.current) {
         hintedRef.current = false;
-        fireTreasureBurst();
+        fireTreasureBurst(presentation?.portalContainer);
       }
-    });
-  }, [litState, match.type, match.id]);
+    }).catch(() => { setLit(null); setLitState("idle"); });
+  }, [litState, match.type, match.id, literatureLoader, presentation]);
 
   // 打开浮层：关闭提示气泡；若气泡本就在展示，标记这次为「首次发现」
   const onLayerOpen = (open: boolean) => {

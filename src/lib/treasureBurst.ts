@@ -5,7 +5,7 @@
 let fired = false;
 
 /** 触发一次全屏宝藏烟花（重复调用与已放过的浏览器均为 no-op；?reshow-hint=1 可重置） */
-export function fireTreasureBurst(): void {
+export function fireTreasureBurst(container?: HTMLElement): void {
   if (fired || typeof document === "undefined") return;
   let demoMode = false;
   try {
@@ -31,7 +31,7 @@ export function fireTreasureBurst(): void {
   canvas.setAttribute("aria-hidden", "true");
   canvas.style.cssText =
     "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;";
-  document.body.appendChild(canvas);
+  (container ?? document.body).appendChild(canvas);
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     canvas.remove();

@@ -1,3 +1,4 @@
+import { usePresentation } from '@/presentation-context';
 // T2 文献联动卡片：结构化摘要分段 outline + 原文链接（DOI / PubMed / OA 全文）
 // not_found 显示建议检索词；加载中骨架 ≤3s；出现时滚动到可视区（📖 点击反馈闭环）
 import { useEffect, useRef, useState } from "react";
@@ -14,8 +15,10 @@ export function LiteratureCardPanel({
   id: string;
   onClose?: () => void;
 }): React.ReactElement {
-  const { t } = useI18n();
-  const [state, setState] = useState<"loading" | "done">("loading");
+  const { t, lang } = useI18n();
+  const presentation = usePresentation();
+  const loadLiterature = presentation?.loadLiterature ?? fetchLiterature;
+  const [state, setState] = useState<"loading" | "done" | "error">("loading");
   const [card, setCard] = useState<LiteratureCardDTO | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -23,15 +26,15 @@ export function LiteratureCardPanel({
     let alive = true;
     setState("loading");
     setCard(null);
-    void fetchLiterature(kind, id).then((c) => {
+    void loadLiterature(kind, id).then((c) => {
       if (!alive) return;
       setCard(c);
       setState("done");
-    });
+    }).catch(() => { if (alive) setState("error"); });
     return () => {
       alive = false;
     };
-  }, [kind, id]);
+  }, [kind, id, loadLiterature]);
 
   // 出现时滚动到可视区：📖 点击 / 正文"查看证据链"后用户能立刻看到卡片
   useEffect(() => {
@@ -56,7 +59,7 @@ export function LiteratureCardPanel({
         ) : null}
       </div>
 
-      {state === "loading" ? (
+      {state === "error" ? <p role="alert" className="px-3.5 py-3 text-[12px] text-muted-foreground">{lang === "zh" ? "文献服务暂不可用，请稍后重试。" : "Literature service unavailable. Please try again later."}</p> : state === "loading" ? (
         <div className="space-y-2 px-3.5 py-3">
           <div className="h-3.5 w-3/4 animate-pulse rounded bg-secondary" />
           <div className="h-3 w-full animate-pulse rounded bg-secondary" />

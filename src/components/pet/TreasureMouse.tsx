@@ -1,3 +1,4 @@
+import { usePresentation } from '@/presentation-context';
 // 寻宝鼠「阿寻」：积木风桌宠。多造型切换 + 挖宝小剧场（土堆/尘土/宝石入袋）+
 // 连击转圈、爱心飘浮、闲置散步张望、宝箱累计计数、里程碑成就庆祝，可拖拽、右键静默。
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -60,9 +61,9 @@ const MOBILE_MAX_W = 768; // 与 useIsMobile / Tailwind md: 断点一致
 const MOBILE_SIZE_CAP = 120; // 移动端即使选大档也封顶，避免遮挡对话
 const MARGIN = 12;
 
-function clampPos(p: PetPos, size: number): PetPos {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+function clampPos(p: PetPos, size: number, viewport?: { width: number; height: number }): PetPos {
+  const w = viewport?.width || window.innerWidth;
+  const h = viewport?.height || window.innerHeight;
   return {
     x: Math.min(Math.max(MARGIN, p.x), w - size - MARGIN),
     y: Math.min(Math.max(MARGIN, p.y), h - size - 120),
@@ -86,6 +87,8 @@ let burstId = 0;
 
 export function TreasureMouse({ event, welcome = false }: { event: PetEvent | null; welcome?: boolean }): React.ReactElement | null {
   const { t, lang } = useI18n();
+  const presentation = usePresentation();
+  const fitPos = (value: PetPos, pixels: number) => clampPos(value, pixels, presentation?.viewport?.());
   const L = petLines(lang);
   const isMobile = useIsMobile();
   const [sizePref, setSizePref] = useState<number>(() => readPetSize()); // 体型宽 px（72–240，步进 12）
@@ -100,8 +103,8 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
   const [quiet, setQuiet] = useState<boolean>(() => readPetQuiet());
   const [pos, setPos] = useState<PetPos>(() => {
     const saved = readPetPos();
-    if (saved) return clampPos(saved, size);
-    return { x: window.innerWidth - size - 24, y: 120 };
+    if (saved) return fitPos(saved, size);
+    return { x: (presentation?.viewport?.().width || window.innerWidth) - size - 24, y: 120 };
   });
   const [state, setState] = useState<PetState>("idle");
   const [readImg, setReadImg] = useState<string>(IMG_READ_STUDY); // read 状态当前轮播到的造型图
@@ -159,7 +162,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
       setBubble(null);
     });
     const offResetPos = onPetResetPos(() => {
-      const p = clampPos({ x: window.innerWidth - size - 24, y: 120 }, size);
+      const p = fitPos({ x: (presentation?.viewport?.().width || window.innerWidth) - size - 24, y: 120 }, size);
       setPos(p);
       writePetPos(p);
       lastAct.current = Date.now();
@@ -413,7 +416,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
             writePetPos(pos);
             return;
           }
-          setPos(clampPos({ x: base + dir * Math.sin(t * Math.PI) * 46, y: pos.y }, size));
+          setPos(fitPos({ x: base + dir * Math.sin(t * Math.PI) * 46, y: pos.y }, size));
         }, 50);
       } else if (r < 0.54) {
         transient("look", null, 3200);
@@ -509,7 +512,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
       cancelLongPress(); // 已在拖动，不再触发长按静默
     }
     if (d.moved) {
-      setPos(clampPos({ x: d.origX + dx, y: d.origY - dy }, size)); // y 是距底部距离
+      setPos(fitPos({ x: d.origX + dx, y: d.origY - dy }, size)); // y 是距底部距离
     }
   };
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -556,7 +559,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
 
   // 造型与状态一一对应：挖土(暗色换夜探矿洞)/开宝箱/空铲失望/转圈卖萌/加冕/眨眼/嗅探/探头/睡土堆
   const imgSrc =
-    state === "digging" || state === "walk" ? (dark ? IMG_NIGHT : IMG_SHOVEL)
+    state === "digging" || state === "walk" ? ((presentation?.theme ? presentation.theme === "dark" : dark) ? IMG_NIGHT : IMG_SHOVEL)
       : state === "read" ? readImg
         : state === "litfound" ? IMG_SPARKLE
           : state === "reveal" || state === "stow" ? IMG_CHEST_OPEN

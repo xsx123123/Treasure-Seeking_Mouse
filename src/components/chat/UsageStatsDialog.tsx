@@ -1,3 +1,4 @@
+import { usePresentation } from '@/presentation-context';
 // 使用统计弹窗：累计对话 / token 消耗 / 去重使用人数 / 每个工具的调用次数
 // 数据源：对话服务内存聚合（GET <chatEndpoint>/stats），Node 自托管落盘 server/.stats.json 重启恢复
 import { useCallback, useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { fetchUsageStats, type UsageStats } from "@/services/seqoutChat";
 
 export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
   const { t, lang } = useI18n();
+  const presentation = usePresentation();
   const [data, setData] = useState<UsageStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,11 +17,11 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const snap = await fetchUsageStats();
+    const snap = await (presentation?.loadUsage ?? fetchUsageStats)();
     if (snap) setData(snap);
     else setError("stats-error");
     setLoading(false);
-  }, []);
+  }, [presentation]);
 
   useEffect(() => {
     if (open) void load();

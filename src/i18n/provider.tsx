@@ -12,6 +12,14 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
+/** Platform-owned locale: never reads/writes storage, title or document language. */
+export function ControlledI18nProvider({ lang, children, onChange }: { lang: Lang; children: React.ReactNode; onChange?: (lang: Lang) => void }): React.ReactElement {
+  const value = useMemo<I18nValue>(() => ({
+    lang, t: createT(lang), setLang: l => onChange?.(l), toggleLang: () => onChange?.(lang === "zh" ? "en" : "zh"),
+  }), [lang, onChange]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [lang, setLangState] = useState<Lang>(() => readLang());
 

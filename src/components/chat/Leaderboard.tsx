@@ -1,3 +1,4 @@
+import { usePresentation } from '@/presentation-context';
 // 挖宝排行榜：登录用户榜 + 访客榜；支持「本周 / 累计」时间维度切换与自定义显示昵称
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, RefreshCw, Sparkles, Trophy, X } from "lucide-react";
@@ -129,6 +130,7 @@ function RankRow({
 
 export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): React.ReactElement | null {
   const { t, lang } = useI18n();
+  const presentation = usePresentation();
   // 默认页签：登录（含自托管本地账号）优先「寻宝鼠」榜，纯游客看「临时矿工」榜
   const [tab, setTab] = useState<BoardTab>(ownUserId ? "diggers" : "guests");
   const [range, setRange] = useState<Range>("all");
@@ -145,7 +147,7 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
     setLoading(true);
     setError(false);
     try {
-      const r = await fetchLeaderboard();
+      const r = await (presentation?.loadLeaderboard ?? fetchLeaderboard)();
       setUsers(r.users);
       setGuests(r.guests);
     } catch {
@@ -153,7 +155,7 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [presentation]);
 
   useEffect(() => {
     if (open) void load();
@@ -190,7 +192,7 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
     }
     setNickSaving(true);
     setNickMsg(null);
-    const res = await updateNickname(name);
+    const res = await (presentation?.updateNickname ?? updateNickname)(name);
     setNickSaving(false);
     if (res.ok) {
       setNickOpen(false);

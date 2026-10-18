@@ -1,3 +1,4 @@
+import { usePresentation } from '@/presentation-context';
 "use client";
 
 import * as React from "react";
@@ -6,13 +7,25 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const Dialog = DialogPrimitive.Root;
+function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const presentation = usePresentation();
+  return <DialogPrimitive.Root {...props} modal={presentation ? false : props.modal} />;
+}
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
 const DialogPortal = DialogPrimitive.Portal;
 
 const DialogClose = DialogPrimitive.Close;
+
+const overlayClassName = "fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
+
+function focusableChildren(container: HTMLElement): HTMLElement[] {
+  return [...container.querySelectorAll<HTMLElement>(
+    'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]',
+  )].filter(element => getComputedStyle(element).display !== "none" &&
+    getComputedStyle(element).visibility !== "hidden");
+}
 
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -21,7 +34,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      overlayClassName,
       className,
     )}
     {...props}
@@ -31,10 +44,17 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { portalContainer?: HTMLElement }
+>(({ className, children, portalContainer: suppliedPortal, onKeyDown, onOpenAutoFocus, ...props }, ref) => {
+  const presentation = usePresentation();
+  const portalContainer = suppliedPortal ?? presentation?.portalContainer;
+  return (
+  <DialogPortal container={portalContainer}>
+    {portalContainer ? (
+      // Non-modal Radix avoids document-wide scroll/aria mutations. Preserve the
+      // original visual backdrop inside the island instead of dropping it.
+      <div aria-hidden="true" data-treasure-dialog-backdrop="" data-state="open" className={overlayClassName} />
+    ) : <DialogOverlay />}
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
@@ -42,6 +62,28 @@ const DialogContent = React.forwardRef<
         className,
       )}
       {...props}
+      onOpenAutoFocus={(event) => {
+        onOpenAutoFocus?.(event);
+        if (portalContainer && !event.defaultPrevented && event.target instanceof HTMLElement) {
+          event.preventDefault();
+          (focusableChildren(event.target)[0] || event.target).focus();
+        }
+      }}
+      onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (!portalContainer || event.defaultPrevented || event.key !== "Tab") return;
+        const content = event.currentTarget;
+        const candidates = focusableChildren(content);
+        const first = candidates[0], last = candidates.at(-1);
+        const scope = content.getRootNode();
+        const active = scope instanceof ShadowRoot ? scope.activeElement : document.activeElement;
+        if (!first || !last) { event.preventDefault(); content.focus(); }
+        else if (event.shiftKey && (active === first || active === content)) {
+          event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && (active === last || active === content)) {
+          event.preventDefault(); first.focus();
+        }
+      }}
     >
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
@@ -50,7 +92,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+);
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
