@@ -1,4 +1,4 @@
-import type { ResearchActionV1, ResearchWorkflowView } from './island/contract';
+import type { ResearchActionV1, ResearchWorkflowView } from './presentation-contract';
 import { createContext, useContext } from 'react';
 import type { LiteratureCardDTO } from './services/literature';
 import type { UsageStats } from './services/seqoutChat';
