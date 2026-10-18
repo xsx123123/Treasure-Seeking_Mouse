@@ -13,6 +13,7 @@ import {
   INTENT_TARGETS,
   normalizeOrganism,
   normalizeAssay,
+  normalizeAssembly,
   parseResearchIntent,
 } from '../intent.ts';
 
@@ -78,6 +79,41 @@ test('normalizeAssay: 未知 assay 拒绝而非直传', () => {
   if (!r.ok) assert.match(r.reason, /词表/);
 });
 
+// ---------- normalizeAssembly：基因组版本别名 → hg19/hg38 ----------
+
+test('normalizeAssembly: GRC 官方名与社区缩写归一化为规范值', () => {
+  const cases: [string, string][] = [
+    ['GRCh38', 'hg38'],
+    ['GRCh37', 'hg19'],
+    ['grc38', 'hg38'],
+    ['b37', 'hg19'],
+    ['B38', 'hg38'],
+    ['hg19', 'hg19'],
+    ['hg38', 'hg38'],
+    [' HG38 ', 'hg38'],
+  ];
+  for (const [input, expected] of cases) {
+    const r = normalizeAssembly(input);
+    assert.ok(r.ok, `${input} 应归一化成功`);
+    if (r.ok) assert.equal(r.value, expected);
+  }
+  // 归一化轨迹入 note；原样通过无 note
+  const g = normalizeAssembly('GRCh38');
+  assert.ok(g.ok && g.note === 'assembly: GRCh38 → hg38');
+  const raw = normalizeAssembly('hg19');
+  assert.ok(raw.ok && raw.note === undefined);
+});
+
+test('normalizeAssembly: 未知版本拒绝而非猜值', () => {
+  const r = normalizeAssembly('GRCh99');
+  assert.ok(!r.ok);
+  if (!r.ok) {
+    assert.match(r.reason, /hg19/);
+    assert.match(r.reason, /hg38/);
+  }
+  assert.ok(!normalizeAssembly('').ok);
+});
+
 // ---------- parseResearchIntent：整体校验与降级路径 ----------
 
 /** 黄金用例：肿瘤免疫治疗相关的单细胞数据 → assay=scRNA-seq 且 needs_literature=true */
@@ -138,7 +174,55 @@ test('parseResearchIntent: targets 必须是非空已知目标数组', () => {
   const all = parseResearchIntent({ ...base, targets: ['geo', 'geo', 'sra', 'ngdc'], needs_literature: false });
   assert.ok(all.ok);
   if (all.ok) assert.deepEqual(all.intent.targets, ['geo', 'sra', 'ngdc']);
-  assert.deepEqual([...INTENT_TARGETS], ['geo', 'sra', 'ena', 'ngdc', 'literature']);
+  assert.deepEqual([...INTENT_TARGETS], ['geo', 'sra', 'ena', 'ngdc', 'literature', 'gene', 'variant']);
+  // gene/variant 为合法目标（枚举只增不改：旧值行为不变，新值通过）
+  const gv = parseResearchIntent({ ...base, targets: ['gene', 'variant', 'gene'] });
+  assert.ok(gv.ok);
+  if (gv.ok) assert.deepEqual(gv.intent.targets, ['gene', 'variant']);
+  // 校验失败 reason 文案含全部 7 个合法取值（动态生成，不再漏 ena）
+  const bad = parseResearchIntent({ ...base, targets: ['pubmed'] });
+  assert.ok(!bad.ok);
+  if (!bad.ok) {
+    for (const t of INTENT_TARGETS) assert.ok(bad.reason.includes(t), `reason 应包含 ${t}`);
+  }
+});
+
+test('parseResearchIntent: filters.assembly 归一化且旧 IR 无 assembly 兼容', () => {
+  const base = { question: 'BRAF V600E 变异证据', targets: ['variant'], needs_literature: false };
+  const r = parseResearchIntent({ ...base, filters: { assembly: 'GRCh38' } });
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.equal(r.intent.filters.assembly, 'hg38');
+    assert.ok(r.notes.some((n) => n === 'assembly: GRCh38 → hg38'), '归一化轨迹应入 notes 回灌通道');
+  }
+  const bad = parseResearchIntent({ ...base, filters: { assembly: 'GRCh99' } });
+  assert.ok(!bad.ok);
+  if (!bad.ok) assert.match(bad.reason, /assembly/);
+  // 旧 IR（不含 assembly）正常解析，filters 无该键
+  const legacy = parseResearchIntent({ ...base, filters: { organism: 'human' } });
+  assert.ok(legacy.ok);
+  if (legacy.ok) assert.equal(legacy.intent.filters.assembly, undefined);
+});
+
+test('parseResearchIntent: 基因中心复合意图（targets 含 gene 且 needs_literature=true）归一化 notes 完整', () => {
+  const r = parseResearchIntent({
+    question: 'TP53 在肺癌里有什么数据、文章和已知突变',
+    targets: ['geo', 'literature', 'gene', 'variant'],
+    filters: { organism: 'human', assay: '单细胞', condition: '肺癌', assembly: 'GRCh38' },
+    needs_literature: true,
+  });
+  assert.ok(r.ok, `基因中心复合意图应校验通过：${r.ok === false ? r.reason : ''}`);
+  if (!r.ok) return;
+  assert.deepEqual(r.intent.targets, ['geo', 'literature', 'gene', 'variant']);
+  assert.equal(r.intent.needs_literature, true);
+  assert.equal(r.intent.filters.organism, 'Homo sapiens');
+  assert.equal(r.intent.filters.assay, 'scRNA-Seq');
+  assert.equal(r.intent.filters.condition, '肺癌');
+  assert.equal(r.intent.filters.assembly, 'hg38');
+  // 归一化轨迹完整回灌：organism/assay/assembly 三条 note 全部落盘（供 tool 消息引导后续工具参数）
+  assert.ok(r.notes.includes('organism: human → Homo sapiens'), 'organism 归一化轨迹缺失');
+  assert.ok(r.notes.some((n) => n.startsWith('assay: ') && n.endsWith('scRNA-Seq')), 'assay 归一化轨迹缺失');
+  assert.ok(r.notes.includes('assembly: GRCh38 → hg38'), 'assembly 归一化轨迹缺失');
 });
 
 test('parseResearchIntent: 缺 question / 非对象输入判负', () => {

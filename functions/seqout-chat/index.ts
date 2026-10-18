@@ -9,7 +9,12 @@
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_EN } from './prompts.generated.ts';
 import { INTENT_TARGETS, parseResearchIntent, type ResearchIntent } from './intent.ts';
 import { platformToolAdapter } from './platform-tools.ts';
+import { BIOMED_TOOL_DEFS, BIOMED_TOOL_LABELS, executeBiomedTool, extractBiomedCards, isBiomedTool } from './biomed/index.ts';
+import { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams } from './shared.ts';
 export { SYSTEM_PROMPT, SYSTEM_PROMPT_EN };
+// 共享基础设施已平移至 shared.ts（biomed/ 模块与主函数共用，避免循环依赖）；
+// 按原符号名 re-export，外部 import 路径与签名保持不变。
+export { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams, fetchTextWithRetry } from './shared.ts';
 
 // 环境变量（Deno / Node 通用；本地自托管时在 server/.env 或进程 env 覆盖）：
 //   LLM_API_KEY      必填（自托管）：OpenAI 兼容接口密钥；Meoo 平台 secret 缺省时的兜底
@@ -41,18 +46,6 @@ if (!envGet('CHAT_SHARED_SECRET')) {
   );
 }
 
-/** 跨运行时读环境变量：Deno（Meoo 平台）与 Node（本地自托管 server/local.mjs）皆可 */
-function envGet(key: string): string {
-  const deno = (globalThis as Record<string, unknown>).Deno as
-    | { env?: { get: (k: string) => string | undefined } }
-    | undefined;
-  const fromDeno = deno?.env?.get(key);
-  if (fromDeno) return fromDeno;
-  const proc = (globalThis as Record<string, unknown>).process as
-    | { env?: Record<string, string | undefined> }
-    | undefined;
-  return proc?.env?.[key] ?? '';
-}
 
 type Json = Record<string, unknown> | string | number | boolean | null | Json[];
 
@@ -205,8 +198,8 @@ const TOOL_DEFS = [
   // 函数内校验归一化（见 intent.ts）后落 tool_logs 审计、并把归一化 IR 回灌模型引导后续工具参数。
   tool('intent_plan', '检索意图规划（不执行检索）：在首次检索调用前，把用户需求结构化为意图。平台会校验并归一化（中文物种名→二名法学名、assay 别名→library_strategy 词表值），返回的归一化意图是后续检索工具参数的依据。可与首个检索工具同一轮并行调用。', {
     question: reqStr('用户研究问题的一句话概括'),
-    targets: { type: 'array', items: strEnum([...INTENT_TARGETS]), description: '目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=公共文献' },
-    filters: { type: 'object', nullable: true, description: '可选过滤条件，无则省略整个字段', properties: { organism: strOpt('物种，中文名或学名均可，平台归一化为二名法学名'), assay: strOpt('实验/测序类型，中英文别名均可，平台归一化为 library_strategy 词表值'), tissue_or_celltype: strOpt('组织或细胞类型'), condition: strOpt('疾病或处理条件'), has_control: { type: 'boolean', nullable: true, description: '是否要求含对照组' } } },
+    targets: { type: 'array', items: strEnum([...INTENT_TARGETS]), description: '目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=公共文献，gene=基因注释，variant=变异与临床证据' },
+    filters: { type: 'object', nullable: true, description: '可选过滤条件，无则省略整个字段', properties: { organism: strOpt('物种，中文名或学名均可，平台归一化为二名法学名'), assay: strOpt('实验/测序类型，中英文别名均可，平台归一化为 library_strategy 词表值'), tissue_or_celltype: strOpt('组织或细胞类型'), condition: strOpt('疾病或处理条件'), has_control: { type: 'boolean', nullable: true, description: '是否要求含对照组' }, assembly: strOpt('基因组版本（变异检索用），如 hg19/hg38/GRCh37/GRCh38，平台归一化为 hg19 或 hg38') } },
     needs_literature: { type: 'boolean', description: '是否需要同时检索公共文献' },
   }, ['question', 'targets', 'needs_literature']),
   tool('seqout_search', '在 GEO/SRA/ENA/GSA 公共数据库中跨库搜索组学项目。', { query: reqStr('搜索关键词，如疾病、物种、技术'), limit: intOpt('返回条数，默认5，最大20'), cursor: strOpt('上次响应的 next_cursor，用于翻页') }, ['query']),
@@ -255,6 +248,8 @@ const TOOL_DEFS = [
   tool('ngdc_get_gwh_sample', '查询 NGDC Genome Warehouse 样本属性。仅接受 SAMC 编号。', { accession: reqStr('GWH BioSample 编号，如 SAMC000001') }, ['accession']),
   tool('ngdc_get_genbase_sequence', '查询 NGDC GenBase 序列，返回截断预览和完整国内直链，避免把大文件灌入上下文。', { accession: reqStr('GenBase 编号，如 C_AA004835.1'), format: { type: 'string', enum: ['fasta', 'gbf'], description: '返回格式，默认 fasta' } }, ['accession']),
   tool('ngdc_get_gsa_mirror', '通过 seqout 检索 SRA/GEO 编号对应的 GSA 国内镜像。找不到时如实返回无镜像。', { accession: reqStr('SRP、SRR、PRJNA 或 GSE 编号') }, ['accession']),
+  // 基因中心工具（MyGene / MyVariant / ClinVar，见 biomed/）：schema 与执行全部由 biomed 模块提供
+  ...BIOMED_TOOL_DEFS,
 ];
 export const NGDC_TOOL_NAMES = ['ngdc_get_gwh_assembly', 'ngdc_get_gwh_project', 'ngdc_get_gwh_sample', 'ngdc_get_genbase_sequence', 'ngdc_get_gsa_mirror'] as const;
 
@@ -563,6 +558,8 @@ function q(args: Record<string, Json | undefined>, key: string): string | undefi
 }
 
 export async function executeTool(name: string, args: Record<string, Json | undefined>): Promise<Json> {
+  // 基因中心工具（MyGene / MyVariant / ClinVar）单点拦截，交给 biomed 模块统一管道执行
+  if (isBiomedTool(name)) return executeBiomedTool(name, args);
   switch (name) {
     // 检索/项目类工具带 NCBI 兜底：seqout 镜像 404（新项目未同步）/5xx 时直连 NCBI E-utilities，
     // 兜底失败或限流时抛原始 seqout 错误；其余错误（格式校验等）不兜底直接抛。
@@ -916,7 +913,7 @@ export async function ncbiDirectFallback(
 
 // ---------- T2：PubMed 文献联动（NCBI E-utilities 主路 + Europe PMC 兜底） ----------
 
-const EUTILS = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
+
 const EPMC = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search';
 export const LITERATURE_TOOL_NAME = 'literature_search';
 /** 缓存 key 带检索策略版本号：检索词规则升级后旧缓存自然失效 */
@@ -1247,52 +1244,7 @@ function cacheSet(key: string, card: LiteratureCard): void {
   }
 }
 
-// --- token bucket 限流：NCBI 无 key 3 req/s / 有 key 10 req/s，留 0.5 余量 ---
-const ncbiBucket = { tokens: 2.5, last: Date.now(), capacity: 2.5 };
-const NCBI_RATE = envGet('NCBI_API_KEY') ? 9.5 : 2.5;
-
-function acquireNcbi(): boolean {
-  const now = Date.now();
-  ncbiBucket.tokens = Math.min(ncbiBucket.capacity, ncbiBucket.tokens + ((now - ncbiBucket.last) / 1000) * NCBI_RATE);
-  ncbiBucket.last = now;
-  if (ncbiBucket.tokens >= 1) { ncbiBucket.tokens -= 1; return true; }
-  return false; // 不排队等待：直接降级 Europe PMC（它无限流压力）
-}
-
-// --- HTTP helper：429/5xx 退避 1s/2s/4s，三次后抛出 ---
-async function fetchWithRetry(url: string, timeoutMs = 6000, retries = 3, headers: Record<string, string> = {}): Promise<Json> {
-  let delay = 1000;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    if (attempt > 0) {
-      await sleep(Math.min(delay, 4000));
-      delay *= 2;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const resp = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json', ...headers } });
-      if (resp.ok) return JSON.parse(await resp.text()) as Json;
-      if (resp.status === 429 || resp.status >= 500) continue; // 重试
-      throw new Error(`HTTP ${resp.status}`);
-    } catch (err) {
-      if (attempt === retries) throw err;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  throw new Error('unreachable');
-}
-
-function sleep(ms: number): Promise<void> { return new Promise((r) => setTimeout(r, ms)); }
-
-function eutilsParams(params: Record<string, string>): string {
-  const usp = new URLSearchParams({ tool: 'go_xunbaoshu', ...params });
-  const email = envGet('NCBI_EMAIL');
-  const key = envGet('NCBI_API_KEY');
-  if (email) usp.set('email', email);
-  if (key) usp.set('api_key', key);
-  return usp.toString();
-}
+// （token bucket 限流与 HTTP 退避重试等基础设施已平移至 shared.ts，此处经顶部 import 使用。）
 
 /** esearch：关键词 → PMID 列表 */
 async function esearch(term: string, retmax = 5): Promise<string[]> {
@@ -1475,7 +1427,8 @@ async function fetchLiterature(kind: string, idOrName: string): Promise<Literatu
 }
 
 // 结果瘦身：搜索类结果截断 summary，集合截断到 20 条，控制回传给 LLM 的体积
-function trimForLLM(payload: Json): string {
+// （导出供 tests/biomed-gene.test.ts 离线断言截断标记；运行时行为不变）
+export function trimForLLM(payload: Json): string {
   let text: string;
   try { text = JSON.stringify(payload); } catch { text = String(payload); }
   if (text.length <= 100000) return text;
@@ -1511,6 +1464,8 @@ function trimForLLM(payload: Json): string {
 
 // 从工具结果里提取可展示的数据集卡片
 function extractCards(name: string, payload: Json): Json[] {
+  // 基因/变异/临床卡片由 biomed 模块投影（meta.source = gene/variant/clinvar）
+  if (isBiomedTool(name)) return extractBiomedCards(name, payload);
   try {
     const data = (payload as { data?: unknown }).data;
     if (!data || typeof data !== 'object') return [];
@@ -1745,10 +1700,11 @@ export async function groundingCheck(
   report.unconfirmed = unconfirmed;
   return report;
 }
-// ---------- 跨源联合编排：数据集 → 文献自动补链 ----------
-// 触发条件（全部满足）：本轮 cards 含 GSE/PRJ 级数据集编号；有文献需求信号
-//（本轮 intent_plan 的 needs_literature=true，或用户原文含"发表/论文/文献/paper"类词）；
+// ---------- 跨源联合编排：数据集/基因 → 文献自动补链 ----------
+// 触发条件（全部满足）：本轮 cards 含 GSE/PRJ 级数据集编号或基因卡片（meta.source=gene）；
+// 有文献需求信号（本轮 intent_plan 的 needs_literature=true，或用户原文含"发表/论文/文献/paper"类词）；
 // 且模型本轮尚未调用过 literature_search（防重——模型仍是编排主体，这里只是自动补链）。
+// 变异（variant）与临床证据（clinvar）卡片不触发补链（spec 6.3：变异/临床场景默认文献诉求不成立）。
 // 补链结果并入同一消息的 cards 流（{event:'cards'}），计入 tool_logs 与用量统计。
 
 const LIT_SIGNAL_RE = /发表|论文|文献|刊物|引用|\bpapers?\b|\bpublication|\bliterature\b|\bpubmed\b/i;
@@ -1766,7 +1722,17 @@ export function cardsContainStudy(cards: Json[]): boolean {
   return false;
 }
 
-/** 自动补链判定：有数据集卡片 + 文献需求信号 + 模型本轮未检索过文献 */
+/** cards 中是否含基因卡片（meta.source=gene；变异/临床卡片不算） */
+export function cardsContainGeneCard(cards: Json[]): boolean {
+  for (const c of cards) {
+    if (!c || typeof c !== 'object' || Array.isArray(c)) continue;
+    const meta = (c as Record<string, unknown>).meta;
+    if (meta && typeof meta === 'object' && !Array.isArray(meta) && (meta as Record<string, unknown>).source === 'gene') return true;
+  }
+  return false;
+}
+
+/** 自动补链判定：有数据集或基因卡片 + 文献需求信号 + 模型本轮未检索过文献 */
 export function needsLiteratureFollowup(opts: {
   cards: Json[];
   intentNeedsLiterature: boolean;
@@ -1774,7 +1740,7 @@ export function needsLiteratureFollowup(opts: {
   literatureAlreadySearched: boolean;
 }): boolean {
   if (opts.literatureAlreadySearched) return false;
-  if (!cardsContainStudy(opts.cards)) return false;
+  if (!cardsContainStudy(opts.cards) && !cardsContainGeneCard(opts.cards)) return false;
   return opts.intentNeedsLiterature || LIT_SIGNAL_RE.test(opts.userText);
 }
 
@@ -2177,5 +2143,5 @@ function labelOf(name: string): string {
     ngdc_get_genbase_sequence: '查询 NGDC GenBase 序列',
     ngdc_get_gsa_mirror: '查询 GSA 国内镜像',
   };
-  return map[name] || name;
+  return { ...BIOMED_TOOL_LABELS, ...map }[name] || name;
 }

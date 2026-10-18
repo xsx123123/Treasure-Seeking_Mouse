@@ -9,12 +9,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cardsContainStudy, needsLiteratureFollowup } from '../index.ts';
+import { cardsContainStudy, cardsContainGeneCard, needsLiteratureFollowup } from '../index.ts';
 
 const GSE_CARD = { tool: 'seqout_search', accession: 'GSE117176', title: 'x', summary: '', meta: {} };
 const PRJ_CARD = { tool: 'seqout_get_project_detail', accession: 'PRJNA481344', title: 'x', summary: '', meta: {} };
 const LIT_CARD = { tool: 'literature_search', accession: '32015576', title: 'p', summary: '', meta: { source: 'literature', pmid: '32015576' } };
 const RUN_CARD = { tool: 'seqout_get_runs', accession: 'SRR7526393', title: 'r', summary: '', meta: {} };
+const GENE_CARD = { tool: 'gene_get', accession: '1017', title: 'CDK2', summary: '', meta: { source: 'gene', symbol: 'CDK2', taxid: '9606' } };
+const VARIANT_CARD = { tool: 'variant_get', accession: 'rs58991260', title: 'chr1:g.218458480G>A', summary: '', meta: { source: 'variant', assembly: 'hg38' } };
+const CLINVAR_CARD = { tool: 'clinvar_get', accession: 'VCV000013961', title: 'NM_004333.6(BRAF):c.1799T>A (p.Val600Glu)', summary: '', meta: { source: 'clinvar', germline_classification: 'Pathogenic' } };
 
 // ---------- cardsContainStudy ----------
 
@@ -68,5 +71,43 @@ test('防重：模型本轮已调用过 literature_search → 绝不重复补链
   assert.equal(
     needsLiteratureFollowup({ cards: [GSE_CARD], intentNeedsLiterature: true, userText: '有没有相关论文', literatureAlreadySearched: true }),
     false,
+  );
+});
+// ---------- 基因卡片触发 / 变异与临床卡片不触发（gene 工具补链泛化） ----------
+
+test('cardsContainGeneCard: gene 卡片算，变异/临床/文献卡片不算', () => {
+  assert.equal(cardsContainGeneCard([GENE_CARD]), true);
+  assert.equal(cardsContainGeneCard([GSE_CARD]), false, '数据集卡片不是基因卡片');
+  assert.equal(cardsContainGeneCard([VARIANT_CARD]), false, '变异卡片不算基因卡片');
+  assert.equal(cardsContainGeneCard([CLINVAR_CARD]), false, '临床证据卡片不算基因卡片');
+  assert.equal(cardsContainGeneCard([]), false);
+});
+
+test('触发：基因卡片 + 文献需求信号（spec 6.3 基因→文献补链）', () => {
+  assert.equal(
+    needsLiteratureFollowup({ cards: [GENE_CARD], intentNeedsLiterature: true, userText: '查一下 CDK2 这个基因', literatureAlreadySearched: false }),
+    true,
+  );
+  assert.equal(
+    needsLiteratureFollowup({ cards: [GENE_CARD], intentNeedsLiterature: false, userText: 'CDK2 有哪些相关论文', literatureAlreadySearched: false }),
+    true,
+  );
+});
+
+test('不触发：仅变异/临床证据卡片（变异与临床场景默认文献诉求不成立）', () => {
+  assert.equal(
+    needsLiteratureFollowup({ cards: [VARIANT_CARD], intentNeedsLiterature: true, userText: 'rs58991260 是什么变异', literatureAlreadySearched: false }),
+    false,
+    '变异卡片不触发补链',
+  );
+  assert.equal(
+    needsLiteratureFollowup({ cards: [CLINVAR_CARD], intentNeedsLiterature: true, userText: 'BRAF V600E 的临床意义', literatureAlreadySearched: false }),
+    false,
+    '临床证据卡片不触发补链',
+  );
+  assert.equal(
+    needsLiteratureFollowup({ cards: [VARIANT_CARD, CLINVAR_CARD], intentNeedsLiterature: true, userText: '相关的文献有哪些', literatureAlreadySearched: false }),
+    false,
+    '变异+临床混合（无数据集/基因卡）仍不触发',
   );
 });

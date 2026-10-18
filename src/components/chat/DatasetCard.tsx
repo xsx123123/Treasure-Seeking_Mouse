@@ -47,6 +47,17 @@ function buildLink(accession: string): string | null {
   if (/^GWH[A-Z0-9]+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/gwh/assembly/${accession.toUpperCase()}`;
   if (/^SAMC\d+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/gwh/bioSample/${accession.toUpperCase()}`;
   if (/^C_[A-Z]{2}\d+\.\d+$/i.test(accession)) return `https://ngdc.cncb.ac.cn/genbase/sequence/${accession.toUpperCase()}`;
+  // 基因 / 变异 / 临床证据编号（biomed 卡片通用分支兜底）：Entrez 纯数字 → NCBI Gene；
+  // ENSG/ENST → Ensembl；rsID → dbSNP；VCV/RCV → ClinVar variation 页（去前导零与版本号）
+  if (/^VCV\d+(\.\d+)?$/i.test(accession)) {
+    return `https://www.ncbi.nlm.nih.gov/clinvar/variation/${accession.replace(/^VCV0*(?=\d)/i, "").replace(/\.\d+$/, "")}/`;
+  }
+  if (/^RCV\d+(\.\d+)?$/i.test(accession)) {
+    return `https://www.ncbi.nlm.nih.gov/clinvar/variation/${accession.replace(/^RCV0*(?=\d)/i, "").replace(/\.\d+$/, "")}/`;
+  }
+  if (/^rs\d+$/i.test(accession)) return `https://www.ncbi.nlm.nih.gov/snp/${accession.toLowerCase()}/`;
+  if (/^ENS[GT]\d+$/i.test(accession)) return `https://www.ensembl.org/Multi/Search/Results?q=${accession}`;
+  if (/^\d+$/.test(accession)) return `https://www.ncbi.nlm.nih.gov/gene/${accession}`;
   const m = accession.match(/^(GSE|GSM|GDS|SRP|SRR|SRX|PRJNA|PRJEB|PRJDB|PRJCA|ERP|ERR|DRP|DRR)\d+$/i);
   if (!m) return null;
   const base = NCBI_BASE[m[1].toUpperCase()];
@@ -93,6 +104,9 @@ export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostM
   const { t } = useI18n();
   const presentation = usePresentation();
   if (card.meta?.source === "literature") return <LiteratureResultCard card={card} />;
+  if (card.meta?.source === "gene") return <GeneResultCard card={card} />;
+  if (card.meta?.source === "variant") return <VariantResultCard card={card} />;
+  if (card.meta?.source === "clinvar") return <ClinVarResultCard card={card} />;
   const link = buildLink(card.accession);
   const prefix = prefixOf(card.accession);
   const controlled = /^HRA\d+$/i.test(card.accession) || card.meta?.controlled === "true";
@@ -224,6 +238,135 @@ function LiteratureResultCard({ card }: { card: CardData }): React.ReactElement 
         {link("full_text") ? <a href={link("full_text")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix"><FileText size={10} />{t("lit.fullText")}</a> : null}
         {link("google_scholar_search") ? <a href={link("google_scholar_search")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-muted-foreground"><ExternalLink size={10} />{t("lit.googleScholar")}</a> : null}
       </div>
+    </article>
+  );
+}
+
+/** 基因卡片（gene_search / gene_get）：徽章 + 双标识 Entrez/Ensembl + species/taxid + 摘要 */
+function GeneResultCard({ card }: { card: CardData }): React.ReactElement {
+  const { t } = useI18n();
+  const meta = card.meta ?? {};
+  const entrezLink = meta.entrez_gene_id ? `https://www.ncbi.nlm.nih.gov/gene/${meta.entrez_gene_id}` : undefined;
+  const ensemblLink = meta.ensembl_gene_id ? `https://www.ensembl.org/Multi/Search/Results?q=${meta.ensembl_gene_id}` : undefined;
+  return (
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-helix/25 bg-card p-3 shadow-sm">
+      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+        <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+          {t("card.gene")}
+        </span>
+        {meta.entrez_gene_id ? <span className="font-mono text-[10px] text-muted-foreground">Entrez: {meta.entrez_gene_id}</span> : null}
+        {meta.ensembl_gene_id ? <span className="font-mono text-[10px] text-muted-foreground">{meta.ensembl_gene_id}</span> : null}
+      </div>
+      <h3 className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">{card.title}</h3>
+      <p className="mt-1 text-[10.5px] text-muted-foreground">
+        {[meta.species, meta.taxid ? `taxid: ${meta.taxid}` : undefined, meta.uniprot_id ? `UniProt: ${meta.uniprot_id}` : undefined].filter(Boolean).join(" · ")}
+      </p>
+      {card.summary?.trim() ? <p className="mt-2 line-clamp-3 text-[11.5px] leading-relaxed text-foreground/80">{card.summary.trim()}</p> : null}
+      {entrezLink || ensemblLink ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
+          {entrezLink ? (
+            <a href={entrezLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+              <ExternalLink size={10} />{t("card.openGene")}
+            </a>
+          ) : null}
+          {ensemblLink ? (
+            <a href={ensemblLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+              <ExternalLink size={10} />Ensembl
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+/** 变异卡片（variant_search / variant_get）：assembly 徽章必显 + 坐标/基因 + 来源覆盖摘要 */
+function VariantResultCard({ card }: { card: CardData }): React.ReactElement {
+  const { t } = useI18n();
+  const meta = card.meta ?? {};
+  const snpLink = meta.url || (meta.rsid ? `https://www.ncbi.nlm.nih.gov/snp/${meta.rsid}/` : undefined);
+  const locParts: string[] = [];
+  if (meta.chr && meta.pos) locParts.push(`chr${meta.chr}:${meta.pos}`);
+  else if (meta.chr) locParts.push(`chr${meta.chr}`);
+  if (meta.ref && meta.alt) locParts.push(`${meta.ref}>${meta.alt}`);
+  return (
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-strand/25 bg-card p-3 shadow-sm">
+      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+        <span className="shrink-0 rounded bg-strand/10 px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-strand ring-1 ring-strand/20">
+          {t("card.variant")}
+        </span>
+        <span className="shrink-0 rounded bg-secondary px-1.5 py-px font-mono text-[9px] font-semibold text-muted-foreground ring-1 ring-border">
+          {t("card.assembly")}: {meta.assembly || "N/A"}
+        </span>
+      </div>
+      <h3 className="line-clamp-2 font-mono text-[12px] font-semibold leading-snug text-foreground">{card.title}</h3>
+      <p className="mt-1 text-[10.5px] text-muted-foreground">
+        {[meta.gene, locParts.join(" "), meta.cytoband].filter(Boolean).join(" · ")}
+      </p>
+      {card.summary?.trim() ? <p className="mt-2 line-clamp-3 text-[11.5px] leading-relaxed text-foreground/80">{card.summary.trim()}</p> : null}
+      {snpLink ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
+          <a href={snpLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+            <ExternalLink size={10} />{t("card.openVariant")}
+          </a>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+/** 临床证据卡片（clinvar_search / clinvar_get）：三类分类分列 + 冲突标记 + disclaimer 灰字小号行 */
+function ClinVarResultCard({ card }: { card: CardData }): React.ReactElement {
+  const { t } = useI18n();
+  const meta = card.meta ?? {};
+  const rows: [string, string | undefined][] = [
+    [t("card.germlineClassification"), meta.germline_classification],
+    [t("card.somaticImpact"), meta.somatic_impact],
+    [t("card.oncogenicity"), meta.oncogenicity],
+  ];
+  const shown = rows.filter(([, v]) => v);
+  return (
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-pet-amber/25 bg-card p-3 shadow-sm">
+      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+        <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-pet-amber ring-1 ring-pet-amber/30">
+          {t("card.clinvar")}
+        </span>
+        {meta.submitter_conflict === "true" ? (
+          <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px text-[9px] font-medium text-pet-amber ring-1 ring-pet-amber/30">
+            {t("card.submitterConflict")}
+          </span>
+        ) : null}
+        <span className="font-mono text-[10px] text-muted-foreground">{card.accession}</span>
+        {meta.scv_count ? <span className="text-[10px] text-muted-foreground">{t("card.scvAssertions", { n: meta.scv_count })}</span> : null}
+      </div>
+      <h3 className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">{card.title}</h3>
+      <p className="mt-1 text-[10.5px] text-muted-foreground">
+        {[meta.gene, meta.condition].filter(Boolean).join(" · ")}
+      </p>
+      {shown.length > 0 || meta.review_status ? (
+        <dl className="mt-2 space-y-0.5">
+          {shown.map(([label, v]) => (
+            <div key={label} className="flex items-baseline gap-1.5 text-[11px]">
+              <dt className="shrink-0 text-muted-foreground/80">{label}:</dt>
+              <dd className="min-w-0 truncate text-foreground">{v}</dd>
+            </div>
+          ))}
+          {meta.review_status ? (
+            <div className="flex items-baseline gap-1.5 text-[11px]">
+              <dt className="shrink-0 text-muted-foreground/80">{t("card.reviewStatus")}:</dt>
+              <dd className="min-w-0 truncate text-foreground/80">{meta.review_status}</dd>
+            </div>
+          ) : null}
+        </dl>
+      ) : null}
+      <p className="mt-1.5 line-clamp-2 text-[9.5px] leading-snug text-muted-foreground/70">{t("card.clinvarDisclaimer")}</p>
+      {meta.url ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
+          <a href={meta.url} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+            <ExternalLink size={10} />{t("card.openClinvar")}
+          </a>
+        </div>
+      ) : null}
     </article>
   );
 }

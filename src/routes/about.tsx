@@ -6,6 +6,7 @@ import {
   BarChart3,
   BookOpen,
   Database,
+  Dna,
   ExternalLink,
   Github,
   Hammer,
@@ -36,6 +37,7 @@ const ONLINE_DEMO = "https://render.qmuse.pub/p/muse/2842191818002612/index.html
 // 6 个核心亮点：图标固定，标题/描述按语言取词（与 README「功能一览」逐条对齐）
 const HIGHLIGHTS = [
   { icon: Database, titleKey: "about.h.1.title", descKey: "about.h.1.desc" },
+  { icon: Dna, titleKey: "about.h.7.title", descKey: "about.h.7.desc" },
   { icon: Link2, titleKey: "about.h.2.title", descKey: "about.h.2.desc" },
   { icon: Trophy, titleKey: "about.h.3.title", descKey: "about.h.3.desc" },
   { icon: BarChart3, titleKey: "about.h.4.title", descKey: "about.h.4.desc" },
@@ -51,6 +53,7 @@ const STACK_TAIL: Record<"zh" | "en", string[]> = {
 
 /** 组学数据源与文献索引分开展示，避免把两类来源混为一谈。 */
 const DATABASES = ["GEO", "SRA", "ENA", "GSA", "NGDC"];
+const GENE_SOURCES = ["MyGene", "MyVariant", "ClinVar"];
 const LITERATURE_SOURCES = ["PubMed", "Europe PMC", "Crossref", "OpenAlex", "Semantic Scholar", "CORE", "arXiv", "bioRxiv", "medRxiv"];
 
 // 证据链四步（与 README「Evidence Chain」一节逐条对齐）
@@ -135,6 +138,17 @@ function AboutPage(): React.ReactElement {
                 className="rounded-full border border-helix/25 bg-helix-soft/50 px-2.5 py-1 font-mono text-[11.5px] text-helix"
               >
                 {db}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 text-[12.5px] font-medium text-foreground/80">{t("about.geneSources")}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {GENE_SOURCES.map((source) => (
+              <span
+                key={source}
+                className="rounded-full border border-helix/25 bg-helix-soft/50 px-2.5 py-1 font-mono text-[11.5px] text-helix"
+              >
+                {source}
               </span>
             ))}
           </div>
