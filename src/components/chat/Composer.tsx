@@ -1,6 +1,6 @@
 // 对话输入区（下铲指挥台）：多行输入 + 模型选择 + 下铲/停止
-import { useEffect, useRef } from "react";
-import { Shovel, Square } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { FileUp, Shovel, Square } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { emitPetTyping } from "@/lib/petBus";
 
@@ -15,6 +15,9 @@ export function Composer({
   value,
   onValueChange,
   welcome = false,
+  onTyping = emitPetTyping,
+  paperMode = false,
+  onPaperInput,
 }: {
   models: string[];
   model: string;
@@ -26,26 +29,40 @@ export function Composer({
   value: string;
   onValueChange: (value: string) => void;
   welcome?: boolean;
+  onTyping?: (active: boolean) => void;
+  paperMode?: boolean;
+  onPaperInput?: (file: File) => void;
 }): React.ReactElement {
   const { t } = useI18n();
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const composingRef = useRef(false);
+  const [localValue, setLocalValue] = useState(value);
+
+  // Keep the textarea locally controlled while an IME is composing. Updating
+  // the Vue shell for every provisional pinyin string can remount/reconcile
+  // the React island and cancel the composition before Chinese text commits.
+  useEffect(() => {
+    if (!composingRef.current && value !== localValue) setLocalValue(value);
+  }, [value, localValue]);
 
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 160)}px`;
-  }, [value]);
+  }, [localValue]);
 
   // 输入联动：有字符时阿寻竖起耳朵随时准备出发（桌宠经 petBus 感知）
   useEffect(() => {
-    emitPetTyping(value.trim().length > 0);
-    return () => emitPetTyping(false);
-  }, [value]);
+    onTyping(localValue.trim().length > 0);
+    return () => onTyping(false);
+  }, [localValue, onTyping]);
 
   function submit(): void {
-    const t = value.trim();
+    const t = localValue.trim();
     if (!t || streaming || disabled) return;
+    setLocalValue("");
     onValueChange("");
     onSend(t);
   }
@@ -54,19 +71,38 @@ export function Composer({
     <div className={welcome ? "w-full" : "safe-b border-t border-border bg-background px-4 py-3 sm:px-6"}>
       <div className="mx-auto max-w-3xl">
         <div className="flex items-end gap-2 rounded-lg border border-helix/40 bg-card p-3 shadow-soft transition-colors focus-within:border-helix focus-within:ring-2 focus-within:ring-ring">
+          {paperMode && onPaperInput ? <>
+            <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onPaperInput(file);
+              event.currentTarget.value = "";
+            }} />
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={disabled || streaming} title={t("paper.attach")} aria-label={t("paper.attach")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-helix/50 hover:text-helix disabled:opacity-40"><FileUp size={15} /></button>
+          </> : null}
           <textarea
             ref={taRef}
             rows={welcome ? 2 : 1}
-            value={value}
-            onChange={(e) => onValueChange(e.target.value)}
+            value={localValue}
+            onCompositionStart={() => { composingRef.current = true; }}
+            onCompositionEnd={(e) => {
+              composingRef.current = false;
+              const next = e.currentTarget.value;
+              setLocalValue(next);
+              onValueChange(next);
+            }}
+            onChange={(e) => {
+              const next = e.target.value;
+              setLocalValue(next);
+              if (!composingRef.current) onValueChange(next);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !composingRef.current) {
                 e.preventDefault();
                 submit();
               }
             }}
-            placeholder={t("composer.placeholder")}
-            aria-label={t("composer.placeholder")}
+            placeholder={t(paperMode ? "paper.composerPlaceholder" : "composer.placeholder")}
+            aria-label={t(paperMode ? "paper.composerPlaceholder" : "composer.placeholder")}
             className="max-h-40 min-h-[40px] min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
             disabled={disabled}
           />
@@ -83,7 +119,7 @@ export function Composer({
             <button
               type="button"
               onClick={submit}
-              disabled={!value.trim() || disabled}
+              disabled={!localValue.trim() || disabled}
               title={t("composer.sendAria")}
               className="flex h-9 shrink-0 items-center gap-1.5 justify-center rounded-lg bg-miner-green px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-all hover:bg-miner-green-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
