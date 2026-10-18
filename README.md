@@ -156,6 +156,7 @@ Important locations:
 | `server/account-api.mjs` | Local accounts, history and leaderboard APIs |
 | `deploy/` | Dockerfile, compose and nginx configuration |
 | `docs/literature-search-and-evidence-chain.md` | Literature integration and evidence-chain design |
+| `archive/` | Archived historical projects and experiments (see archive/README.md) |
 
 ## Development Checks
 

@@ -29,7 +29,7 @@ GeoMuse 的工具能力存在两层，新增工具**两层都要改，且保持�
 - `client.py`：`SeqoutClient.request()` 用 httpx 请求 `{SEQOUT_BASE_URL}{path}`，自带 429/5xx 重试、非 JSON 检测。
 
 **Layer B：GeoMuse 聊天后端（TS/JS，OpenAI function-calling）**
-- `src/Treasure-Seeking_Mouse/functions/seqout-chat/index.ts`（Deno/Supabase Edge Function，65KB）与 `qmuse/qmuse-app/functions/seqout-chat/src/main.js`（QMuse 云函数）各有一份**平行实现**，内容需同步改。
+- `src/Treasure-Seeking_Mouse/functions/seqout-chat/index.ts`（Deno/Supabase Edge Function，65KB）与 `archive/qmuse/qmuse-app/functions/seqout-chat/src/main.js`（QMuse 云函数，已归档，不再同步）各有一份**平行实现**，内容需同步改。
 - 工具声明在头部 `TOOL_DEFS` 数组（`tool(name, description, properties, required)` 工厂函数）；执行走 `seqoutGet(path, params)` → `new URL(SEQOUT_BASE_URL + path)`。
 - 人设规则在 `prompts/system-zh.md` / `system-en.md`，由 `npm run sync:prompts` 生成 `prompts.generated.ts`，**禁止手改 generated 文件**。
 - 测试：`src/seqout-mcp/tests/`（pytest，httpx mock）、`functions/seqout-chat/tests/*.test.mjs`。
@@ -179,7 +179,7 @@ src/seqout-mcp/src/seqout_mcp/tools/__init__.py  + ngdc.TOOLS
 src/seqout-mcp/src/seqout_mcp/services/search.py + "genbase_preview" transform
 src/seqout-mcp/tests/test_mcp_core.py            + 5 组用例
 src/Treasure-Seeking_Mouse/functions/seqout-chat/index.ts        + TOOL_DEFS×5、ngdcGet、分发、统计埋点
-src/Treasure-Seeking_Mouse/qmuse/qmuse-app/functions/seqout-chat/src/main.js  同上（同步）
+src/Treasure-Seeking_Mouse/archive/qmuse/qmuse-app/functions/seqout-chat/src/main.js  同上（已归档，不再同步）
 src/Treasure-Seeking_Mouse/functions/seqout-chat/prompts/system-zh.md  +规则13/14/15
 src/Treasure-Seeking_Mouse/functions/seqout-chat/prompts/system-en.md  英文同步
 src/Treasure-Seeking_Mouse/functions/seqout-chat/tests/          + ngdc 用例
@@ -200,7 +200,7 @@ GeoMuse 工具能力有两层，必须同名同参同步改：
 A. src/seqout-mcp（Python MCP Server）：tools/ 各模块导出 TOOLS: list[ToolSpec]，
    tools/__init__.py 聚合成 ALL_SPECS；client.py 的 SeqoutClient.request() 请求 {SEQOUT_BASE_URL}{path}。
 B. 聊天后端（OpenAI function-calling）：src/Treasure-Seeking_Mouse/functions/seqout-chat/index.ts
-   与 src/Treasure-Seeking_Mouse/qmuse/qmuse-app/functions/seqout-chat/src/main.js 是平行实现，
+   与 src/Treasure-Seeking_Mouse/archive/qmuse/qmuse-app/functions/seqout-chat/src/main.js（已归档，不再同步）是平行实现，
    工具在头部 TOOL_DEFS 用 tool(name, description, properties, required) 声明，执行走 seqoutGet()。
 人设规则在 prompts/system-zh.md 和 system-en.md，改完必须 npm run sync:prompts 重新生成
 prompts.generated.ts（禁止手改 generated 文件）。

@@ -1,5 +1,7 @@
 # Paper → Data → Analysis：实施、接口与测试记录
 
+> 注：island 实验已于 2026-10-18 归档至 `archive/island/`，契约类型迁 `src/presentation-contract.ts`；下文为归档前记录。
+
 日期：2026-10-17；分支：`feat/paper-data-analysis`。配套 [审计](paper-to-analysis-audit.md) 与 [ADR](paper-to-analysis-adr.md)。
 
 ## 交付范围

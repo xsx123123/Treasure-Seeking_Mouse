@@ -94,6 +94,7 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 | `src/routes/about.tsx` | 应用内「关于」页（产品介绍） |
 | `deploy/` | Docker 部署（Dockerfile 双 target + compose + nginx + Makefile） |
 | `server/` | 自托管对话服务（Node 原生跑 Edge Function 的 handler，零依赖） |
+| `archive/` | 历史归档（qmuse/weixin/crawler/island，见 archive/README.md） |
 
 详细架构说明、Meoo 平台发布流程、手动部署步骤与常见问题排查，请见 **[docs/DETAILED_README.md](DETAILED_README.md)**。
 

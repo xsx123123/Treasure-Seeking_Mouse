@@ -4,8 +4,8 @@
 - 接到开发任务先读 **`docs/ARC/README.md`**：代码地图（任务→文件）、6 类常见任务菜谱（加工具/加文案/加桌宠状态/加设置项/加协议帧/改主题）、验证命令速查、硬红线。配套两份专题：`architecture-2026-10-06.md`（当前平台架构与数据面）、`frontend-style-spec.md`（设计令牌/组件/动效规范）。
 
 ## QMuse 平台版（迁移副本，已停止维护）
-- `qmuse/qmuse-app/` 是本应用的 **QMuse 平台迁移版**（数据后端 Supabase→QMuse 云服务、Edge Function→云函数、SSE→整包+前端模拟流式、应用内邮箱登录→平台账号）。**自 2026-10-06 起停止维护：新改动不再同步过去，回归测试与构建校验也只需跑主仓库**；目录保留作历史归档，勿删。
-- （存档）改 QMuse 版时遵守 `qmuse/qmuse-app/AGENTS.md` 与其内置 qmuse-cloud 技能契约；改完跑 `npm run check`、`npm run build` 与产物校验器（见 MIGRATION.md 第五节）。
+- `archive/qmuse/qmuse-app/` 是本应用的 **QMuse 平台迁移版**（数据后端 Supabase→QMuse 云服务、Edge Function→云函数、SSE→整包+前端模拟流式、应用内邮箱登录→平台账号）。**自 2026-10-06 起停止维护：新改动不再同步过去，回归测试与构建校验也只需跑主仓库**；目录保留作历史归档，勿删。
+- （存档）改 QMuse 版时遵守 `archive/qmuse/qmuse-app/AGENTS.md` 与其内置 qmuse-cloud 技能契约；改完跑 `npm run check`、`npm run build` 与产物校验器（见 MIGRATION.md 第五节）。
 
 ## 文档与文案同步（改一处要连带改的地方）
 - **README 双语**：根 `README.md` 是**英文版**（GitHub 仓库首页默认展示），`docs/README.zh-CN.md` 是**中文版**。两份顶部有互链语言切换行（`**English** | [简体中文](docs/README.zh-CN.md)` / `[English](../README.md) | **简体中文**`），且**正文前部**各有一个 `## Documentation` / `## 文档` 段互列中英 README + 详细文档入口（中文版排在前）。改功能一览、技术栈、目录、快速开始、致谢等任一章节，**两份都要同步改**，别只动一份；章节顺序也保持一致。图片/链接用各自所在目录的相对路径：根 README 写 `docs/寻宝鼠.png`、`docs/badges/*.svg`、`src/assets/pet/*`；中文版在 `docs/` 下，写 `寻宝鼠.png`、`badges/*.svg`、`../src/assets/pet/*`。代码块的命令字面量保持原样，只翻译注释。
@@ -13,9 +13,9 @@
 - **i18n 键约定**：新增界面文案一律走 `t("key")`，不写死在组件里；错误提示若在 service 层（非组件）用 `translate(readLang(), "key")`。改完跑 `npx tsc --noEmit`（键名打错会报错）+ `npx vite build`，并核对 zh/en 键数一致。
 
 ## 微信小程序版（Taro + React，首轮已落地）
-- `weixin/` 是**微信小程序版**工作区，已落地首轮可编译工程（Taro 4.3 + React 18）。可行性调研见 `weixin/README.md`，文件级映射与踩坑见 `weixin/MIGRATION.md`，开发硬约束见 `weixin/AGENTS.md`。
+- `archive/weixin/` 是**微信小程序版**工作区（已归档），已落地首轮可编译工程（Taro 4.3 + React 18）。可行性调研见 `archive/weixin/README.md`，文件级映射与踩坑见 `archive/weixin/MIGRATION.md`，开发硬约束见 `archive/weixin/AGENTS.md`。
 - 关键结论：小程序**无 DOM**，`src/components/**`、`src/routes/**`、`src/components/ui/`（46 个 shadcn + 26 个 `@radix-ui/*`）**不能复用**；`src/i18n/`、`src/lib/linkify.ts` 等纯逻辑层已原样搬入（i18n 仅 3 个平台函数有差异）。
-- ⚠️ **尚未在微信开发者工具/真机验证**：`onChunkReceived` 流式是最关键未验证项（见 `weixin/README.md` 第九节）。扩展前先实测。
+- ⚠️ **尚未在微信开发者工具/真机验证**：`onChunkReceived` 流式是最关键未验证项（见 `archive/weixin/README.md` 第九节）。扩展前先实测。
 
 ## 依赖
 - `@supabase/supabase-js`：云服务客户端（Auth / Database），仅通过 `src/supabase/client.ts` 生成的单例使用。

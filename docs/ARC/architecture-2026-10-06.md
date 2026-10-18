@@ -101,6 +101,8 @@ browser ──→ web(nginx:80) ──┬─ /           → 前端静态产物�
 
 ### CygnusX 展示 Island 隔离实验（未发布）
 
+> 注：island 实验已于 2026-10-18 归档至 `archive/island/`，契约类型迁 `src/presentation-contract.ts`；下文为归档前记录。
+
 `src/island/index.tsx` 提供 mount/update/unmount，仅复用 EmptyState、Composer、本地鼠形象与受控 i18n；未导入 routes、账号、历史或网络服务。Vue PoC 位于父仓 `frontend/poc/treasure-island/`，单向传入非敏感 ViewModel 与回调。ShadowRoot 隔离非字体 CSS，Portal 定位于主题 wrapper；字体规则 refcount 管理并在最终卸载时释放。共用组件新增可选参数，独立 SPA 默认行为不变。
 
 独立 library 与对照页配置为 `vite.island.config.ts`、`vite.island-reference.config.ts`，产物只写 `/tmp`。这不是独立 SPA 的新部署入口。DOM/编译通过不代表视觉通过：当前 Chromium 被运行环境 socket 权限阻断，截图、字体、Focus 与窄屏验收未完成，G-P1A 未通过；父仓报告 `docs/implementation/treasure-react-island-poc.md` 记录边界。非空消息仍拒绝进入此欢迎页 PoC，完整消息/卡片投影属下一阶段。
@@ -110,7 +112,7 @@ browser ──→ web(nginx:80) ──┬─ /           → 前端静态产物�
 - **安全定位**：自托管面向熟人场景——scrypt + token 无速率限制；`CHAT_SHARED_SECRET` 只挡爬虫级滥用。公网开放部署前应叠加反代限流（审计报告 §三-F/E 的宿主机 nginx 模板可直接用）。
 - **Meoo/Deno 平台**：Edge Function 保持平台可移植（`envGet` 双读 Deno/Node 环境），但文件系统类能力（统计/账号持久化）仅自托管 Node 路径可用，平台实例重启归零。
 - **纯游客模式**：消息仅存 localStorage（50 条 / 7 天滚动），跨设备不可用——这是产品取舍而非缺陷，登录即解。
-- **QMuse 迁移副本**（`qmuse/qmuse-app/`）已停止维护（2026-10-06 起），保留作历史归档，新改动不再同步。
+- **QMuse 迁移副本**（`archive/qmuse/qmuse-app/`）已停止维护（2026-10-06 起），保留作历史归档，新改动不再同步。
 
 ### 平台完整展示入口补充（2026-10-15）
 
