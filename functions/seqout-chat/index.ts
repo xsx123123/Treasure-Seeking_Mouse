@@ -8,6 +8,7 @@
 
 import { SYSTEM_PROMPT, SYSTEM_PROMPT_EN } from './prompts.generated.ts';
 import { INTENT_TARGETS, parseResearchIntent, type ResearchIntent } from './intent.ts';
+import { chatAccessMode, isTrustedRequest, verifyCloudUser } from './access.ts';
 import { platformToolAdapter } from './platform-tools.ts';
 import { BIOMED_TOOL_DEFS, BIOMED_TOOL_LABELS, executeBiomedTool, extractBiomedCards, isBiomedTool } from './biomed/index.ts';
 import { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams } from './shared.ts';
@@ -38,11 +39,11 @@ const FUNCTION_NAME = 'seqout-chat';
 // 启动自检：CHAT_SHARED_SECRET 未配置时对话接口（verify_jwt=false）无任何鉴权，
 // 端点暴露到哪，谁就能消耗 LLM 额度。不改成默认拒绝——会破坏现有熟人部署——
 // 但必须在启动日志里醒目提示，自托管/公网部署应配置该变量并让前端携带 X-Chat-Key。
-if (!envGet('CHAT_SHARED_SECRET')) {
+if (!envGet('CHAT_SHARED_SECRET') && envGet('CHAT_ACCESS_MODE') !== 'authenticated') {
   console.warn(
     `[${FUNCTION_NAME}] ⚠️⚠️⚠️ 未配置 CHAT_SHARED_SECRET：对话接口当前无鉴权，` +
     `任何能访问该端点的调用者都可直接消耗 LLM 额度。自托管/公网部署请务必配置 ` +
-    `CHAT_SHARED_SECRET，并让前端请求携带 X-Chat-Key 头。`,
+    `CHAT_SHARED_SECRET，通过 Node 账号认证入口或受保护的服务端调用。`,
   );
 }
 
@@ -1799,11 +1800,20 @@ export const handler = async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: '当前项目的 AI 服务凭证未就绪，请稍后重试' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 可选共享密钥：配置 CHAT_SHARED_SECRET 后，对话接口要求请求头 X-Chat-Key 匹配（防 casual 滥用）。
-    // 文献/统计等公共分支在前面已 return，不受此约束；未配置时完全兼容旧行为。
+    // Shared keys are service credentials. Browsers authenticate with Bearer via Node or Supabase Auth.
+    // Literature/stats remain public; an in-process trusted Request cannot be forged with browser headers.
+    let verifiedActor: string | null = null;
     const sharedSecret = envGet('CHAT_SHARED_SECRET');
-    if (sharedSecret && req.headers.get('X-Chat-Key') !== sharedSecret) {
-      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    const internalAccess = isTrustedRequest(req) || !!sharedSecret && req.headers.get('X-Chat-Key') === sharedSecret;
+    if (!internalAccess && chatAccessMode(envGet('CHAT_ACCESS_MODE'), sharedSecret) === 'authenticated') {
+      const token = /^Bearer (\S+)$/.exec(req.headers.get('Authorization') || '')?.[1];
+      if (!token) return Response.json({ error: 'unauthorized' }, { status: 401 });
+      try {
+        verifiedActor = (await verifyCloudUser(token, envGet('SUPABASE_URL'), envGet('SUPABASE_ANON_KEY'), req.signal)).id;
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'auth_unavailable';
+        return Response.json({ error }, { status: error === 'unauthorized' ? 401 : 503 });
+      }
     }
 
     // GET：模型目录（注入 defaultModel：优先本地 LLM_MODEL 配置，让前端默认选中它）
@@ -1847,7 +1857,7 @@ export const handler = async (req: Request): Promise<Response> => {
 
     // 使用统计：本算一轮对话 + 记录使用者（登录用户 id / 访客设备指纹，前端经 X-Stats-Actor 上报）
     usageStats.chats += 1;
-    trackActor(req.headers.get('x-stats-actor') ?? '');
+    trackActor(verifiedActor ?? req.headers.get('x-stats-actor') ?? '');
     touchStats();
 
     const encoder = new TextEncoder();

@@ -188,7 +188,8 @@ npm run test:live
 
 ## 8. 本次审计发现的待清理项
 
-- `package.json` 仍声明 `framer-motion`，但当前源码没有使用；现行规范要求 CSS keyframes，后续依赖清理时应移除该遗留依赖，避免把它当成允许的实现方式；
+- `framer-motion` 已从当前 `package.json` 移除；现行规范仍要求 CSS keyframes。其余依赖与组件清理应先核对实际 import 与产物，不按旧依赖清单推断；
+- 当前框架边界、存储模式和新核查的契约问题见 [2026-10-19 框架盘点](architecture-review-2026-10-19.md)，启动新平台前先核对其中的身份恢复、cards 增量与鉴权限制；
 - 本地开发服务默认端口统一为 `8787`。若项目改端口，必须同时更新 `CHAT_API_PORT`、`VITE_CHAT_API`、Vite proxy target、README 和本文件；
 - `archive/qmuse/qmuse-app/` 是停止维护的迁移归档，不纳入新平台的回归和功能同步范围。
 

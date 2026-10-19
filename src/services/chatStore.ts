@@ -1,8 +1,26 @@
 // 会话与消息的云端存取（Supabase Client，RLS 仅本人可见）
 import { supabase } from "@/supabase/client";
 import { readLang, translate } from "@/i18n";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/supabase/types";
+import type { MessageMetadata } from "../lib/conversationState";
 import type { Json } from "@/supabase/types";
 import type { DatasetCard, ToolLog } from "./seqoutChat";
+
+// Additive application schema overlay until the platform regenerates its managed types.
+type ManagedMessage = Database['public']['Tables']['chat_messages'];
+type MessageDatabase = Omit<Database, 'public'> & {
+  public: Omit<Database['public'], 'Tables'> & {
+    Tables: Omit<Database['public']['Tables'], 'chat_messages'> & {
+      chat_messages: Omit<ManagedMessage, 'Row' | 'Insert' | 'Update'> & {
+        Row: ManagedMessage['Row'] & { metadata: Json | null };
+        Insert: ManagedMessage['Insert'] & { metadata?: Json | null };
+        Update: ManagedMessage['Update'] & { metadata?: Json | null };
+      };
+    };
+  };
+};
+const messageClient = supabase as unknown as SupabaseClient<MessageDatabase>;
 
 export interface SessionRow {
   id: string;
@@ -16,6 +34,7 @@ export interface MessageRow {
   content: string;
   cards: DatasetCard[] | null;
   tool_logs: ToolLog[] | null;
+  metadata?: Json | null;
 }
 
 export async function listSessions(): Promise<SessionRow[]> {
@@ -54,9 +73,9 @@ export async function deleteSession(id: string): Promise<void> {
 }
 
 export async function listMessages(sessionId: string): Promise<MessageRow[]> {
-  const { data, error } = await supabase
+  const { data, error } = await messageClient
     .from("chat_messages")
-    .select("id,role,content,cards,tool_logs")
+    .select("*")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true })
     .limit(200);
@@ -67,20 +86,28 @@ export async function listMessages(sessionId: string): Promise<MessageRow[]> {
 export async function insertMessage(
   sessionId: string,
   userId: string,
-  msg: { role: "user" | "assistant"; content: string; cards?: DatasetCard[] | null; tool_logs?: ToolLog[] | null },
+  msg: { id?: string; role: "user" | "assistant"; content: string; cards?: DatasetCard[] | null; tool_logs?: ToolLog[] | null; metadata?: MessageMetadata },
 ): Promise<string> {
-  const { data, error } = await supabase
+  const { data, error } = await messageClient
     .from("chat_messages")
     .insert({
+      ...(msg.id ? { id: msg.id } : {}),
       session_id: sessionId,
       user_id: userId,
       role: msg.role,
       content: msg.content,
       cards: (msg.cards ?? null) as Json,
       tool_logs: (msg.tool_logs ?? null) as Json,
+      metadata: (msg.metadata ?? null) as unknown as Json,
     })
     .select("id")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === '23505' && msg.id) {
+      const existing = await messageClient.from('chat_messages').select('id').eq('id', msg.id).eq('user_id', userId).eq('session_id', sessionId).single();
+      if (!existing.error && existing.data) return existing.data.id;
+    }
+    throw new Error(error.message);
+  }
   return (data as { id: string }).id;
 }

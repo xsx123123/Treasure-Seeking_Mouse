@@ -33,6 +33,7 @@ export interface ChatUIMessage {
   boost?: { accession: string | null } | null;
   /** grounding 校验结果：正文引用但未在证据卡片/回源核验中证实的编号（服务端 event: grounding） */
   grounding?: GroundingPayload | null;
+  completion?: "complete" | "interrupted" | "failed";
   streaming?: boolean;
   liveTools?: LiveToolEvent[];
   error?: string | null;
@@ -169,7 +170,7 @@ export function ChatMessage({
             ) : null}
           </div>
         ) : null}
-        {!msg.streaming && msg.cards && msg.cards.length > 0 ? (
+        {msg.cards && msg.cards.length > 0 ? (
           <DatasetCardGrid cards={msg.cards} hostMessageId={msg.id} />
         ) : null}
         {!msg.streaming && msg.grounding && msg.grounding.unconfirmed.length > 0 ? (
@@ -181,6 +182,7 @@ export function ChatMessage({
         ) : null}
         {litDetail ? <LiteratureDetailDialog card={litDetail} onClose={() => setLitDetail(null)} /> : null}
         {!msg.streaming && items.length > 0 ? <SuggestionBlock items={items} onPick={onPickSuggestion} /> : null}
+        {!msg.streaming && msg.completion === "interrupted" && !msg.error ? <p className="mt-2 text-sm text-muted-foreground">{t("reliability.interrupted")}</p> : null}
         {msg.error ? (
           <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-cap text-destructive">
             {msg.error}

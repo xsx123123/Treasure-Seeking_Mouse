@@ -1,5 +1,7 @@
 # GEO 寻宝鼠 · 平台架构文档
 
+> 2026-10-19 核查补充：当前代码全貌、功能成熟度、存储差异与待修复契约见 [框架盘点](architecture-review-2026-10-19.md)。本文保留早期架构与演进记录；后续带日期的 island 描述为历史实验，已归档，不代表主 SPA 现有入口。
+
 > 日期：2026-10-06
 > 对象：`src/Treasure-Seeking_Mouse/`（Web 前端 + 自托管对话服务）
 > 形态：单页应用（React 19 + Vite 7）+ Node 对话服务（OpenAI 兼容 LLM 网关 + seqout.org 公共组学 API），Docker Compose 双容器部署
@@ -81,6 +83,8 @@ browser ──→ web(nginx:80) ──┬─ /           → 前端静态产物�
 - **配置面**：除 `server/.env` 外无第二配置源；`CHAT_API_PORT/HOST`、`DATA_DIR`、`STATS_FILE`、`SEQOUT_BASE_URL`、`NCBI_API_KEY`、`CHAT_SHARED_SECRET`（可选共享密钥防 casual 滥用）均可覆盖。
 
 ## 七、近期演进（2026-10-05 审计之后）
+
+2026-10-20：历史按服务/账号分区并升级 revision 同步；Web Bearer 与服务间密钥分离；cards 增量归并并统一结算；昵称认证与云消息 metadata 修复。实现、迁移顺序及验收边界见 [实施记录](reliability-fixes-2026-10-20.md)。
 
 - CygnusX BioOps Phase 2：保留本 Node/TS Runtime 与原检索工具。在平台认证的
   `/cygnusx/discovery` 请求上，从平台 capability catalog 投影 read/prepare 工具，

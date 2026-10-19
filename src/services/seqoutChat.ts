@@ -1,5 +1,7 @@
 // seqout-chat Edge Function 前端封装：流式请求 + SSE 解析
-import { projectUrlId, supabase, supabaseUrl } from "@/supabase/client";
+import { projectUrlId, supabase, supabaseUrl, isOfflineMode } from "@/supabase/client";
+import { getLocalToken } from "./localIdentity";
+import { consumeChatStream } from "../lib/chatStream.ts";
 import { getDeviceId } from "@/services/statsStore";
 import { readLang, translate } from "@/i18n";
 
@@ -58,7 +60,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return {
     "Content-Type": "application/json",
     ...(projectUrlId ? { "OneDay-App-Id": projectUrlId } : {}),
-    ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    ...((isOfflineMode ? getLocalToken() : session?.access_token) ? { Authorization: `Bearer ${isOfflineMode ? getLocalToken() : session!.access_token}` } : {}),
     // 使用统计去重标识：登录用户用 user id，访客用设备指纹（服务端只存哈希键，不关联对话内容）
     "X-Stats-Actor": session?.user?.id ?? getDeviceId(),
   };
@@ -143,7 +145,7 @@ export async function requestSeqoutChat(
     let detail = translate(readLang(), "err.requestFailed", { status: response.status });
     try {
       const j = await response.json();
-      if (typeof j?.error === "string") detail = j.error;
+      if (typeof j?.error === "string") detail = j.error === "unauthorized" ? translate(readLang(), "reliability.loginRequired") : j.error;
     } catch {
       /* ignore */
     }
@@ -155,41 +157,5 @@ export async function requestSeqoutChat(
     return;
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        const t = line.trim();
-        if (!t.startsWith("data:")) continue; // 忽略 ": ping" 心跳
-        const payload = t.slice(5).trim();
-        if (payload === "[DONE]") return;
-        try {
-          const obj = JSON.parse(payload);
-          if (typeof obj.delta === "string" && obj.delta) handlers.onDelta(obj.delta);
-          else if (obj.event === "tool") handlers.onTool(obj);
-          else if (obj.event === "cards" && Array.isArray(obj.cards)) handlers.onCards(obj.cards);
-          else if (obj.event === "polariseq") handlers.onPolariseq?.(typeof obj.accession === "string" ? obj.accession : null);
-          else if (obj.event === "grounding" && Array.isArray(obj.unconfirmed)) {
-            handlers.onGrounding?.({
-              unconfirmed: obj.unconfirmed,
-              confirmed: Array.isArray(obj.confirmed) ? obj.confirmed : [],
-            });
-          }
-          else if (obj.event === "end") handlers.onEnd({ cards: obj.cards ?? [], tools: obj.tools ?? [] });
-          else if (typeof obj.error === "string") handlers.onError(obj.error);
-        } catch {
-          /* 忽略非法行 */
-        }
-      }
-    }
-  } catch (err) {
-    if ((err as Error).name !== "AbortError") handlers.onError(translate(readLang(), "err.interrupted"));
-  }
+  await consumeChatStream(response.body, handlers, () => translate(readLang(), "err.interrupted"), signal);
 }
