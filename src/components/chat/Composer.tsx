@@ -110,7 +110,7 @@ export function Composer({
             }}
             placeholder={t(paperMode ? "paper.composerPlaceholder" : "composer.placeholder")}
             aria-label={t(paperMode ? "paper.composerPlaceholder" : "composer.placeholder")}
-            className="max-h-40 min-h-[40px] min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+            className="max-h-40 min-h-[40px] min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
             disabled={disabled}
           />
           {streaming ? (
@@ -128,20 +128,20 @@ export function Composer({
               onClick={submit}
               disabled={!localValue.trim() || disabled}
               title={t("composer.sendAria")}
-              className="flex h-9 shrink-0 items-center gap-1.5 justify-center rounded-lg bg-miner-green px-3 text-[13px] font-medium text-primary-foreground shadow-sm transition-all hover:bg-miner-green-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-9 shrink-0 items-center gap-1.5 justify-center rounded-lg bg-miner-green px-3 text-cap font-medium text-primary-foreground shadow-soft transition-all hover:bg-miner-green-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Shovel size={15} />
               <span className="hidden sm:inline">{t("composer.send")}</span>
             </button>
           )}
         </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
           <label className="flex items-center gap-1.5">
             <span className="font-mono">model</span>
             <select
               value={model}
               onChange={(e) => onModelChange(e.target.value)}
-              className="rounded-md border border-border bg-card px-2 py-1 font-mono text-[11.5px] text-muted-foreground shadow-sm outline-none transition-colors hover:border-miner-green/50 focus:border-miner-green"
+              className="rounded-md border border-border bg-card px-2 py-1 font-mono text-xs text-muted-foreground shadow-soft outline-none transition-colors hover:border-miner-green/50 focus:border-miner-green"
             >
               {models.map((m) => (
                 <option key={m} value={m}>{m}</option>

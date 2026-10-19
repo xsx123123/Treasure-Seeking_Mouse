@@ -91,7 +91,7 @@
 4. 前端不得出现任何密钥（LLM key 只在 `server/.env`）；
 5. 改 `functions/seqout-chat/index.ts` 的解析逻辑必跑测试（见 2.1-4）；
 6. 中英 i18n 键数保持相等；
-7. `qmuse/` 目录是历史归档，不改不同步不删；
+7. `archive/qmuse/` 目录是历史归档，不改不同步不删；
 8. SYSTEM_PROMPT 只改 `prompts/*.md` 并跑 `sync:prompts`，**禁手改 `prompts.generated.ts`**。
 
 ## 5. 文档维护约定

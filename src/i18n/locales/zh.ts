@@ -158,7 +158,7 @@ export const zh = {
   "composer.send": "下铲挖宝",
   "composer.sendAria": "下铲挖宝",
   "composer.disclaimer":
-    "检索自公共组学与文献库，以原始条目为准",
+    "数据来自公共组学与文献库，请以 NCBI / NGDC 原始记录为准",
 
   // ---- 消息 ----
   "msg.thinking": "正在思考…",
@@ -181,6 +181,22 @@ export const zh = {
   "card.controlled": "受控数据",
   "card.openGsaMirror": "打开 GSA 国内直链",
   "card.noIdentifier": "⚠ 无核验标识",
+
+  // ---- 基因 / 变异 / 临床证据卡片（biomed 工具） ----
+  "card.gene": "基因",
+  "card.variant": "变异",
+  "card.clinvar": "临床证据",
+  "card.assembly": "版本",
+  "card.germlineClassification": "胚系分类",
+  "card.somaticImpact": "体细胞影响",
+  "card.oncogenicity": "致癌性",
+  "card.reviewStatus": "评审状态",
+  "card.submitterConflict": "提交者分歧",
+  "card.scvAssertions": "{n} 条提交断言",
+  "card.openGene": "NCBI 基因页",
+  "card.openVariant": "dbSNP 变异页",
+  "card.openClinvar": "ClinVar 记录",
+  "card.clinvarDisclaimer": "ClinVar 记录需由专业人士审阅后方可用于医学决策，本结果不构成诊断或用药建议。",
 
   // ---- 下载加速卡片 ----
   "boost.title": "下载加速 · Polariseq",
@@ -400,7 +416,8 @@ export const zh = {
   "about.thanks": "致谢",
   "about.why": "立意 · 为什么做这只寻宝鼠",
   "about.dbs": "阿寻能挖的数据库",
-  "about.dbsIntro": "叫「科研寻宝鼠」是因为科研检索像是在矿脉里寻宝。阿寻一次下铲可以穿透组学数据库，并沿着编号和主题追到相关文献。",
+  "about.dbsIntro": "叫「科研寻宝鼠」是因为科研检索像是在矿脉里寻宝。阿寻一次下铲可以穿透组学数据库，顺着基因标识下探变异与临床证据矿脉，并沿着编号和主题追到相关文献。",
+  "about.geneSources": "基因 · 变异 · 临床证据来源",
   "about.literatureSources": "文献检索来源",
   "about.gsaPolicy": "GSA 公开数据可通过国家基因组科学数据中心的国内直链获取；GSA-Human 受控数据需要 PI 经 BIGSSO 登录并向 DAC 申请，本平台不提供受控数据下载。",
   "about.evidence": "证据链",
@@ -410,13 +427,15 @@ export const zh = {
   "about.evidence.3": "经 Europe PMC 等来源补充摘要、DOI 元数据与 OA 全文链接；",
   "about.evidence.4": "返回标题、作者、期刊、年份、DOI、摘要要点与相关 GEO 上下文。",
   "about.evidenceNote": "主动的九源文献检索返回标准化论文卡片；证据链查询则针对单个编号或单个数据集优化。",
-  "about.why.1": "科研寻宝鼠（Research Treasure Mouse）让新手科研小白告别老旧繁琐的生信数据库迷宫，用拟人化“探矿挖宝”交互，一键检索 GEO / SRA / ENA / GSA / NGDC 等组学数据库，并联动 PubMed、Europe PMC、Crossref、OpenAlex、Semantic Scholar、CORE、arXiv、bioRxiv、medRxiv 文献资源。",
+  "about.why.1": "科研寻宝鼠（Research Treasure Mouse）让新手科研小白告别老旧繁琐的生信数据库迷宫，用拟人化“探矿挖宝”交互，一键检索 GEO / SRA / ENA / GSA / NGDC 等组学数据库，下探 MyGene / MyVariant / ClinVar 基因与变异矿脉，并联动 PubMed、Europe PMC、Crossref、OpenAlex、Semantic Scholar、CORE、arXiv、bioRxiv、medRxiv 文献资源。",
   "about.why.2": "对刚进组的研究生来说，科研最磨灭热情的，往往不是做实验，而是起步时在冰冷、反人类的数据库迷宫里抓瞎，找不对样本、看不懂编号、搜不到文献，第一步就陷入自我怀疑与精神内耗。「科研寻宝鼠」想要做的，是把高校科研人从枯燥压抑的第一步数据搜索中彻底解救出来。",
   "about.why.3": "在这里，科研不再是孤独的单打独斗，也没有冰冷复杂的代码门槛。只要像和同门聊天一样，随口说出你的课题构想，桌宠“阿寻”就会戴上矿工帽一头扎进数据矿脉深处，兴冲冲地帮你刨出与研究方向最贴合的黄金数据与关键文献，将规整的样本卡片稳稳叼到你面前。每一次检索都是一次充满惊喜的挖宝，让科研起步少一点焦虑迷茫，多一份探索的纯粹乐趣与踏实陪伴。",
   "about.authors": "本项目由 JZHANG 开发，使用 seqout 公共数据服务、NGDC 公共 API 与 OpenAI 兼容模型网关。",
 
   "about.h.1.title": "对话式检索",
-  "about.h.1.desc": "自然语言提问 → 大模型自动调用组学、NGDC 与九源文献工具 → 流式回答 + 数据集或论文卡片 +「下一铲建议」。",
+  "about.h.1.desc": "自然语言提问 → 大模型自动调用组学、NGDC、基因/变异/临床与九源文献工具 → 流式回答 + 数据集、基因、变异、临床证据或论文卡片 +「下一铲建议」。",
+  "about.h.7.title": "基因中心检索链",
+  "about.h.7.desc": "MyGene 基因查询与跨库标识映射（Entrez / Ensembl / UniProt，支持批量）、MyVariant 人类变异聚合注释（hg19 / hg38 双组装）、ClinVar 临床变异证据（分类与提交者冲突）；从基因出发贯通「找数据 → 找文献 → 找变异」。",
   "about.h.2.title": "正文内嵌链接",
   "about.h.2.desc": "正文里的 GSE/GSM/GO/PMID 编号自动变成可点链接，hover 预取论文元数据，一键查看文献证据链和 DOI / OA 全文。",
   "about.h.3.title": "排行榜",

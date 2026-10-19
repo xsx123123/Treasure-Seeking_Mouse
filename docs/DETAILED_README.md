@@ -79,7 +79,7 @@
 │   └── supabase/
 │       ├── client.ts           # 【平台生成】Cloud 客户端单例，禁止手改
 │       └── types.ts            # 【平台生成】数据库类型，禁止手改
-├── crawler/                    # T1 捉虫休眠模块（最小骨架，见 §3.6）
+├── archive/                   # 历史归档（qmuse/weixin/crawler/island，见 archive/README.md）
 ├── functions/
 │   └── seqout-chat/index.ts    # 核心 Edge Function（见下文协议，含文献联动 action）
 ├── server/
@@ -156,9 +156,9 @@
 - **事件桥**：`src/lib/evidenceBus.ts` 把 IdLink/卡片深处的"查看证据链"请求多播给消息列表层（按 hostMessageId 认领），文献卡片渲染在宿主消息下方。
 - 样式：`styles.css` 的 `.id-link`（teal 主色 + hover 下划线展开），双主题自适应。
 
-### 3.6 T1 捉虫休眠模块（crawler/）
+### 3.6 T1 捉虫休眠模块（archive/crawler/）
 
-最小爬虫骨架 + 休眠一体（`crawler/` 目录）：
+（已归档，2026-10-18）最小爬虫骨架 + 休眠一体（`archive/crawler/` 目录）：
 
 - `sleeper.py`：RUNNING/IDLE/SLEEP 三态状态机 + 指数退避阶梯（60/300/900/1800 秒封顶，成功执行任务后计数器清零）+ `poke()` 统一唤醒收口 + 可注入 `Clock`（单测用虚拟时钟，不真等 90 分钟）+ 资源 release/acquire 钩子（SLEEP 释放重建）+ 环境变量覆盖（`CRAWLER_HEARTBEAT=0` 等）。
 - `runner.py`：主循环（命令队列优先于任务队列）；现有捉虫逻辑接入点为 `register_handler` 的任务处理函数。

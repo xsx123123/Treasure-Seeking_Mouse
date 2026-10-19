@@ -18,7 +18,7 @@ const DialogPortal = DialogPrimitive.Portal;
 
 const DialogClose = DialogPrimitive.Close;
 
-const overlayClassName = "fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
+const overlayClassName = "fixed inset-0 z-50 overlay-dim data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
 
 function focusableChildren(container: HTMLElement): HTMLElement[] {
   return [...container.querySelectorAll<HTMLElement>(

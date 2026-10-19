@@ -77,6 +77,21 @@ test('cardIdentifiers: 汇集 accession / meta.pmid / meta.doi（含 accession �
   assert.ok(ids.has('10.1038/s41586-020-2649-2'), 'meta.doi 与 accession 形态的 DOI 都要入集合');
 });
 
+test('grounding 一期守卫: SCAN_PATTERNS 未扩展 rsID/VCV/RCV（design 2.4.3 二期再启用，防一期误加）', () => {
+  // rsID / VCV / RCV 出现在正文时不被扫描——这是设计决定（spec 一期零实现），
+  // 守卫断言防止一期顺手把基因/变异类 pattern 加进正文扫描，误伤卡片外的合法编号
+  assert.deepEqual(
+    scanAccessions('rs58991260 对应 VCV000065533，临床关系见 RCV000055723，基因 CDK2（Entrez 1017）。'),
+    [],
+    'rsID/VCV/RCV/基因名/Entrez ID 暂不纳入正文编号扫描',
+  );
+  assert.deepEqual(
+    SCAN_PATTERNS.map((p) => p.kind),
+    ['gse', 'gsm', 'sra', 'bioproject', 'pmid', 'doi'],
+    'SCAN_PATTERNS 的 kind 枚举一期保持六类不动（新 pattern 须走设计评审，二期再启）',
+  );
+});
+
 // ---------- verifyEndpointFor / verifyAccession：回源核验路由 ----------
 
 test('verifyEndpointFor: 按编号前缀路由到对应上游', () => {

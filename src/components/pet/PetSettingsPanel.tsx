@@ -24,15 +24,15 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       className={`relative h-[22px] w-[40px] shrink-0 rounded-full transition-colors ${checked ? "bg-helix" : "bg-border"}`}
     >
       <span
-        className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-card shadow-sm transition-all duration-200 ${checked ? "left-[18px]" : "left-[2px]"}`}
+        className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-card shadow-soft transition-all duration-200 ${checked ? "left-[18px]" : "left-[2px]"}`}
       />
     </button>
   );
 }
 
 const rowCls = "flex items-center gap-3 px-3.5 py-3";
-const rowTitle = "text-[13px] font-semibold text-foreground";
-const rowDesc = "mt-0.5 text-[11.5px] leading-snug text-muted-foreground";
+const rowTitle = "text-cap font-semibold text-foreground";
+const rowDesc = "mt-0.5 text-xs leading-snug text-muted-foreground";
 const rowIcon = "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-helix";
 const divider = <div className="border-t border-border/70" />;
 
@@ -89,11 +89,11 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
     <div className="w-[300px] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-soft-lg">
       {/* 标题栏 */}
       <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
-        <p className="flex items-center gap-1.5 text-[13.5px] font-semibold">
+        <p className="flex items-center gap-1.5 text-sm font-semibold">
           <PawPrint size={15} className="text-pet-amber-deep" />
           {t("pet.settings.title")}
         </p>
-        <button type="button" onClick={() => onClose?.()} className="text-[12px] text-muted-foreground transition-colors hover:text-foreground">
+        <button type="button" onClick={() => onClose?.()} className="text-cap text-muted-foreground transition-colors hover:text-foreground">
           {t("pet.settings.close")}
         </button>
       </div>
@@ -116,7 +116,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
           >
             <Minimize2 size={13} />
           </button>
-          <span className="w-11 text-center font-mono text-[12.5px] tabular-nums text-foreground">
+          <span className="w-11 text-center font-mono text-cap tabular-nums text-foreground">
             {Math.round((size / PET_SIZE_DEFAULT) * 100)}%
           </span>
           <button
@@ -180,7 +180,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
         <button
           type="button"
           onClick={() => emitPetResetPos()}
-          className="shrink-0 rounded-lg border border-pet-amber/40 bg-pet-gold-soft/60 px-2.5 py-1 text-[12px] font-medium text-pet-amber-deep transition-colors hover:bg-pet-gold-soft"
+          className="shrink-0 rounded-lg border border-pet-amber/40 bg-pet-gold-soft/60 px-2.5 py-1 text-cap font-medium text-pet-amber-deep transition-colors hover:bg-pet-gold-soft"
         >
           {t("pet.settings.resetBtn")}
         </button>
@@ -193,15 +193,15 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
         <button
           type="button"
           onClick={recall}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-helix-soft px-2 py-2 text-[12.5px] font-medium text-helix transition-colors hover:bg-helix-soft/70"
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-helix-soft px-2 py-2 text-cap font-medium text-helix transition-colors hover:bg-helix-soft/70"
         >
           <PawPrint size={13} />
           {t("pet.settings.recall")}
         </button>
-        <p className="mt-2 text-center font-mono text-[10px] text-muted-foreground/70">
+        <p className="mt-2 text-center font-mono text-xs text-muted-foreground/70">
           {t("pet.settings.treasure", { n: readTreasureCount() })}
         </p>
-        <p className="mt-1.5 text-center text-[10.5px] leading-snug text-muted-foreground/60">
+        <p className="mt-1.5 text-center text-xs leading-snug text-muted-foreground/60">
           {presentation ? (lang === "zh" ? "这些偏好仅在当前模块打开期间保留。" : "These preferences last while this module is open.") : t("pet.settings.note")}
         </p>
       </div>

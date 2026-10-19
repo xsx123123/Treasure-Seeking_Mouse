@@ -13,7 +13,7 @@
     <a href="https://github.com/xsx123123/Treasure-Seeking_Mouse/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" /></a>
   </p>
   <p>🚀 <a href="https://render.qmuse.pub/p/muse/2842191818002612/index.html"><strong>在线体验</strong>：https://render.qmuse.pub/p/muse/2842191818002612/index.html</a>（线上部署版本可能落后于仓库最新代码）</p>
-  <p>把组学数据与多源文献检索能力封装成「聊天式挖宝」——自然语言提问，大模型自动检索 GEO / SRA / ENA / GSA / NGDC 和九个文献来源，按证据自动对齐相关 GEO 研究与论文，数据卡片 + 文献证据链呈现，附桌宠养成玩法。</p>
+  <p>把组学数据、基因变异与多源文献检索能力封装成「聊天式挖宝」——自然语言提问，大模型自动检索 GEO / SRA / ENA / GSA / NGDC、MyGene / MyVariant / ClinVar 和九个文献来源，按证据自动对齐相关 GEO 研究与论文，数据 / 基因 / 变异 / 临床证据卡片 + 文献证据链呈现，附桌宠养成玩法。</p>
 </div>
 
 > **备注**：本项目对话后端封装的 [seqout-mcp](https://github.com/xsx123123/JZ_Tools/tree/main/src/seqout-mcp) 是一个通过 [seqout.org](https://seqout.org) 与 NGDC 官方 API 查询公共组学数据的 MCP Server，提供组学只读工具，覆盖 GEO、SRA、ENA、GSA、NGDC 数据集搜索、项目详情、样本信息、编号反查、统计和下载链接，并额外提供 PubMed、Europe PMC、Crossref、OpenAlex、Semantic Scholar、CORE、arXiv、bioRxiv、medRxiv 九源文献搜索工具。文献结果可结合编号、标题和元数据自动对齐相关 GEO 研究。它使用 stdio 传输：MCP 客户端负责启动进程并通过标准输入/输出通信；普通日志只写入 stderr，不会污染 MCP 协议数据。本应用将这套工具能力以 OpenAI function schema 声明式移植进对话服务，无需在本地运行 Python MCP 进程。
@@ -64,14 +64,17 @@ pnpm run dev       # 前端 dev server（固定 3015 端口）
 
 ## 阿寻能挖的数据库
 
-叫「GEO 寻宝鼠」只是因为 GEO 是最老的那条矿脉——阿寻其实不只能搜 GEO，一次下铲同时穿透 7 个组学数据库，并能联动九个文献来源：
+叫「GEO 寻宝鼠」只是因为 GEO 是最老的那条矿脉——阿寻其实不只能搜 GEO，一次下铲同时穿透 7 个组学数据库，并能联动九个文献来源和三条基因矿脉：
 
 GEO · SRA · ArrayExpress · ENA · GSA · DRA · GEA
 
+基因注释（MyGene）· 人类变异（MyVariant）· 临床证据（ClinVar）
+
 ## 功能一览
 
-- **对话式检索**：自然语言提问 → LLM tool-calling 自动选择 seqout、NGDC 或文献工具（组学数据工具加九源文献搜索）→ 流式回答 + 数据集卡片或论文卡片 + 「下一铲建议」
+- **对话式检索**：自然语言提问 → LLM tool-calling 自动选择 seqout、NGDC、基因/变异/临床或文献工具（组学数据工具加九源文献搜索与基因三库）→ 流式回答 + 数据集/基因/变异/临床证据/论文卡片 + 「下一铲建议」
 - **多源文献与 GEO 对齐**：并行检索 PubMed、Europe PMC、Crossref、OpenAlex、Semantic Scholar、CORE、arXiv、bioRxiv、medRxiv，按 DOI / PMID / 标题去重，并自动关联可验证的 GEO 研究、编号和证据链
+- **基因中心检索链**：MyGene 基因查询与跨库标识映射（Entrez / Ensembl / UniProt，支持批量 1~100 个标识）、MyVariant 人类变异聚合注释（dbSNP / ClinVar / gnomAD / CADD，hg19 / hg38 双组装）、ClinVar 临床变异证据（VCV / RCV 记录、germline / somatic / oncogenicity 分类、提交者冲突）；从基因出发贯通「找数据 → 找文献 → 找变异」的研究闭环
 - **正文内嵌链接**：GSE/GSM/GO/PMID 编号自动变成可点链接，hover 浮层预取论文元数据，一键查看文献证据链（PubMed 摘要 + DOI / OA 全文）
 - **排行榜**：登录用户榜 + 访客榜，本周 / 累计双维度，自定义昵称
 - **使用统计**：顶栏 📊 面板展示累计对话、Token 消耗、使用人数、每个工具的调用次数（服务端聚合，容器内持久化）
@@ -84,6 +87,28 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 
 ## 目录
 
+仓库结构（2026-10-18 目录整理后，根目录 21 项）：
+
+```text
+├── src/                     # React 单页应用（路由 / 组件 / 服务 / i18n / 桌宠素材）
+│   ├── presentation-contract.ts   # 共享展示契约类型（island 归档前迁出）
+│   └── supabase/            # 平台生成客户端，禁手改
+├── functions/seqout-chat/   # Edge Function：工具 schema、适配器、SSE 编排
+│   ├── biomed/              # MyGene / MyVariant / ClinVar 适配器
+│   ├── prompts/             # 可编辑中英系统提示词（改后跑 npm run sync:prompts）
+│   └── tests/               # 离线回归测试 + fixtures
+├── server/                  # 自托管 Node 服务（对话 + 账号 + 统计）
+├── scripts/                 # paper_evidence.py 及其测试
+├── deploy/                  # Docker 部署（Dockerfile 双 target + compose + nginx）
+├── docs/                    # 双语 README、ARC 架构笔记、白皮书、徽章
+├── public/                  # 静态 favicon
+├── archive/                 # 历史归档（qmuse/weixin/crawler/island，见 archive/README.md）
+├── index.html               # SPA 壳（内联防闪白主题 bootstrap）
+├── vite.config.ts / tsconfig.json / components.json
+├── package.json / pnpm-lock.yaml / skills-lock.json
+└── Makefile / README.md / AGENTS.md / LICENSE / .gitignore / .dockerignore
+```
+
 | 位置 | 内容 |
 |------|------|
 | `docs/DETAILED_README.md` | **详细开发文档**：目录结构、核心架构与数据流、平台部署（Meoo）、手动部署、systemd、踩坑清单 |
@@ -91,6 +116,7 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 | `src/routes/about.tsx` | 应用内「关于」页（产品介绍） |
 | `deploy/` | Docker 部署（Dockerfile 双 target + compose + nginx + Makefile） |
 | `server/` | 自托管对话服务（Node 原生跑 Edge Function 的 handler，零依赖） |
+| `archive/` | 历史归档（qmuse/weixin/crawler/island，见 archive/README.md） |
 
 详细架构说明、Meoo 平台发布流程、手动部署步骤与常见问题排查，请见 **[docs/DETAILED_README.md](DETAILED_README.md)**。
 

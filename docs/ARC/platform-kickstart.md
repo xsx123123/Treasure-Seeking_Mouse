@@ -190,7 +190,7 @@ npm run test:live
 
 - `package.json` 仍声明 `framer-motion`，但当前源码没有使用；现行规范要求 CSS keyframes，后续依赖清理时应移除该遗留依赖，避免把它当成允许的实现方式；
 - 本地开发服务默认端口统一为 `8787`。若项目改端口，必须同时更新 `CHAT_API_PORT`、`VITE_CHAT_API`、Vite proxy target、README 和本文件；
-- `qmuse/qmuse-app/` 是停止维护的迁移归档，不纳入新平台的回归和功能同步范围。
+- `archive/qmuse/qmuse-app/` 是停止维护的迁移归档，不纳入新平台的回归和功能同步范围。
 
 ## 9. 附录 · 平台搭建 Agent 提示词模板
 

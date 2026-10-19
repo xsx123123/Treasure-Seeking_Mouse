@@ -13,7 +13,6 @@ server/.env
 .tsbuildinfo
 .pytest_cache
 docs
-crawler
-qmuse
+archive
 .DS_Store
 截屏*.png

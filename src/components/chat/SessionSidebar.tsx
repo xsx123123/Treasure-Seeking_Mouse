@@ -64,7 +64,7 @@ export function SessionSidebar({
   return (
     <aside className="flex h-full w-full flex-col border-r border-border bg-panel">
       <div className="flex items-center gap-3 px-4 pb-3 pt-4">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-pet-gold-soft shadow-sm ring-1 ring-pet-amber/30">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-pet-gold-soft shadow-soft ring-1 ring-pet-amber/30">
           {/* 阿寻的动画形象（眨眼大头贴）：双层结构——内层承载 idle 起伏，
               外层负责裁切与金色底托。scale/keyframe 都写 transform，
               落同一元素会互相覆盖，故拆开。 */}
@@ -73,13 +73,13 @@ export function SessionSidebar({
               src={mouseAvatar}
               alt={t("pet.alt")}
               draggable={false}
-              className="h-full w-full object-contain drop-shadow-sm"
+              className="h-full w-full object-contain drop-shadow-soft"
             />
           </span>
         </span>
         <div className="min-w-0">
-          <p className="font-display truncate text-[16px] font-semibold tracking-tight">{t("brand.name")}</p>
-          <p className="truncate text-[11px] text-muted-foreground">{t("brand.tagline")}</p>
+          <p className="font-display truncate text-base font-semibold tracking-tight">{t("brand.name")}</p>
+          <p className="truncate text-xs text-muted-foreground">{t("brand.tagline")}</p>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ export function SessionSidebar({
         <button
           type="button"
           onClick={onNew}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-3 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-miner-green-hover"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-3 text-cap font-medium text-primary-foreground transition-colors hover:bg-miner-green-hover"
         >
           <Plus size={15} /> {t("sidebar.newChat")}
         </button>
@@ -105,14 +105,14 @@ export function SessionSidebar({
             {groups.every((group) => group.rows.length === 0) && <p className="py-4 text-center text-xs text-muted-foreground">{t("sidebar.noResults")}</p>}
             {groups.filter((group) => group.rows.length > 0).map((group) => (
             <section key={group.key}>
-            <h2 className="mb-2 px-2 text-[11px] font-medium text-muted-foreground">{t(`sidebar.${group.key}`)}</h2>
+            <h2 className="mb-2 px-2 text-xs font-medium text-muted-foreground">{t(`sidebar.${group.key}`)}</h2>
             <ul className="space-y-1">
             {group.rows.map((s) => (
               <li key={s.id}>
                 <div
-                  className={`group flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-2.5 text-[13px] transition-colors ${
+                  className={`group flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-2.5 text-cap transition-colors ${
                     s.id === activeId
-                      ? "bg-card text-foreground shadow-sm ring-1 ring-helix/25"
+                      ? "bg-card text-foreground shadow-soft ring-1 ring-helix/25"
                       : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
                   }`}
                 >
@@ -128,7 +128,7 @@ export function SessionSidebar({
                         if (e.key === "Escape") setEditingId(null);
                       }}
                       maxLength={40}
-                      className="min-w-0 flex-1 rounded border border-helix/50 bg-background px-1.5 py-0.5 text-[13px] outline-none"
+                      className="min-w-0 flex-1 rounded border border-helix/50 bg-background px-1.5 py-0.5 text-cap outline-none"
                     />
                   ) : (
                     <button type="button" title={s.title} onClick={() => onSelect(s.id)} className="min-w-0 flex-1 truncate text-left">
@@ -175,7 +175,7 @@ export function SessionSidebar({
             <button
               type="button"
               onClick={onLogout}
-              className="flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+              className="flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
             >
               <LogOut size={12} /> {t("sidebar.logout")}
             </button>
@@ -185,7 +185,7 @@ export function SessionSidebar({
             <button
               type="button"
               onClick={onLogin}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-[12.5px] text-foreground transition-colors hover:border-helix/50 hover:text-helix"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-cap text-foreground transition-colors hover:border-helix/50 hover:text-helix"
             >
               <LogIn size={13} /> {t("sidebar.loginCta")}
             </button>
@@ -193,7 +193,7 @@ export function SessionSidebar({
               <button
                 type="button"
                 onClick={onGuestTry}
-                className="story-link block w-full py-0.5 text-center text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
+                className="story-link block w-full py-0.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 {t("sidebar.guestTry")}
               </button>
@@ -201,7 +201,7 @@ export function SessionSidebar({
           </div>
         ) : null}
         {!userLabel && storageNote ? (
-          <p className="border-t border-border/60 pt-2 text-[10.5px] leading-relaxed text-muted-foreground/70">{storageNote}</p>
+          <p className="border-t border-border/60 pt-2 text-xs leading-relaxed text-muted-foreground/70">{storageNote}</p>
         ) : null}
       </div>
     </aside>

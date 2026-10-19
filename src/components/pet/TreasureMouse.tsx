@@ -676,7 +676,7 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
       ) : null}
       {/* 气泡（点击手动切换语录） */}
       {bubble && !bubbleDismissed ? (
-        <div aria-live="polite" className={`pet-bubble absolute -top-2 left-1/2 flex w-[230px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full items-start gap-1 rounded-lg border border-border bg-card p-2 text-[11.5px] text-foreground shadow-soft ${welcomeBubble ? "pet-welcome-bubble" : ""}`}>
+        <div aria-live="polite" className={`pet-bubble absolute -top-2 left-1/2 flex w-[200px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full items-start gap-1 rounded-lg border border-border bg-card p-2 text-xs text-foreground shadow-soft ${welcomeBubble ? "pet-welcome-bubble" : ""}`}>
         <button
           type="button"
           onClick={cycleBubble}
@@ -716,7 +716,7 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
 
       {/* 成就横幅 */}
       {milestone ? (
-        <div className="pet-banner absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-pet-amber/60 bg-card px-3 py-1 text-[11px] font-semibold text-pet-amber-deep shadow-soft-lg">
+        <div className="pet-banner absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-pet-amber/60 bg-card px-3 py-1 text-xs font-semibold text-pet-amber-deep shadow-soft-lg">
           {t("pet.banner", { name: t(`pet.achievements.${milestone.threshold}` as MessageKey), n: milestone.threshold })}
         </div>
       ) : null}
@@ -757,11 +757,11 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
         {(state === "reveal" || state === "stow") && gemCount !== null ? (
           <span className={`absolute -right-1 -top-3 flex h-9 w-9 items-center justify-center rounded-full bg-pet-gold-soft ring-2 ring-pet-amber/50 ${state === "stow" ? "pet-gem-stow" : "pet-gem"}`}>
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-              <path d="M6 3h12l4 6-10 12L2 9z" fill="#D97706" stroke="#B45309" strokeWidth="1" strokeLinejoin="round" />
-              <path d="M2 9h20M9 3l-3 6 6 12M15 3l3 6-6 12" fill="none" stroke="#FEF3C7" strokeWidth="0.9" />
+              <path d="M6 3h12l4 6-10 12L2 9z" className="fill-pet-amber stroke-pet-amber-deep" strokeWidth="1" strokeLinejoin="round" />
+              <path d="M2 9h20M9 3l-3 6 6 12M15 3l3 6-6 12" className="stroke-pet-gold-soft" fill="none" strokeWidth="0.9" />
             </svg>
             {gemCount > 1 ? (
-              <span className="absolute -right-1 -bottom-1 rounded-full bg-pet-amber-deep px-1 font-mono text-[9px] text-white">×{gemCount}</span>
+              <span className="absolute -right-1 -bottom-1 rounded-full bg-pet-amber-deep px-1 font-mono text-xs text-pet-amber-deep-foreground">×{gemCount}</span>
             ) : null}
           </span>
         ) : null}
@@ -780,7 +780,7 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
         >
           <img key={chestPopKey} src={IMG_CHEST} alt={t("pet.chest")} draggable={false} className={`pointer-events-none block h-full w-full drop-shadow-[0_3px_5px_rgb(0_0_0/0.15)] ${chestPopKey > 0 ? "pet-chest-pop" : ""}`} />
           {treasure > 0 ? (
-            <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-pet-amber-deep px-1 text-center font-mono text-[9px] leading-[17px] text-white shadow-sm">{treasure > 99 ? "99+" : treasure}</span>
+            <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-pet-amber-deep px-1 text-center font-mono text-xs leading-[17px] text-pet-amber-deep-foreground shadow-soft">{treasure > 99 ? "99+" : treasure}</span>
           ) : null}
         </button>
         {earned.map((a, i) => (
@@ -804,7 +804,7 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
       </div>
 
       {/* 小字提示：触摸端无右键，提示长按 */}
-      <p className="mt-0.5 text-center font-mono text-[9px] text-muted-foreground/60">
+      <p className="mt-0.5 text-center font-mono text-xs text-muted-foreground/60">
         {t("pet.hint", { mode: isMobile ? t("pet.modeLongPress") : t("pet.modeRightClick") })}
       </p>
     </div>

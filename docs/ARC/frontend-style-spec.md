@@ -25,7 +25,7 @@
 | `--foreground` | `#292524` | 温暖深炭黑正文（非死黑） |
 | `--card` / `--popover` | `#FFFFFF` | 纯白主卡片/浮层 |
 | `--secondary` / `--muted` | `#F6F3EE` | 便签与次级卡片底 |
-| `--muted-foreground` | `#78716C` | 温暖次级灰（说明、placeholder） |
+| `--muted-foreground` | `#57534E` | 温暖次级灰（说明、placeholder）；stone-600 档，两底 ≥6.8:1 |
 | `--accent` | `#F1EDE6` | hover 浅米 |
 | `--border` / `--input` | `#E7E5E4` | 柔和边界线 |
 | `--primary` / `--helix` | `#15803D` | 矿工绿：主行动按钮、状态、强调图标 |
@@ -35,6 +35,7 @@
 | `--rail-icon` | `#57534E` | 窄边条图标专用（纯色，见 §7） |
 | `--gold` / `--gold-hover` / `--gold-light` | `#D97706` / `#B45309` / `#FEF3C7` | 琥珀金三档（高亮词、hover 焦点、浅金便签） |
 | `--pet-amber` / `--pet-amber-deep` / `--pet-gold-soft` | `#D97706` / `#B45309` / `#FEF3C7` | 寻宝琥珀金（桌宠/空态/宝箱彩蛋专用语义组） |
+| `--pet-amber-deep-foreground` | `#FFFFFF` | pet 实底前景（徽章），暗色反转深金褐 |
 | `--destructive` | `#DC2626` | red-600 档错误/删除 |
 | `--ring` | `#15803D59` | 焦点环（矿工绿 35%） |
 | `--radius` | `0.75rem` | 统一圆角基准 |
@@ -43,7 +44,15 @@
 
 ### 2.2 暗色 `.dark`（夜探矿洞）
 
-策略：**同名字令整体覆盖**，不新增暗色类名。暖深褐矿洞底（`--background: oklch(0.21 0.012 70)`），卡片亮一档（0.26），主色提亮为亮矿工绿（`oklch(0.72 0.16 150)`），琥珀金整体提亮发光。特例：`--pet-amber-deep` 在暗底反转为**亮金文字档**（`oklch(0.85 0.13 82)`）——"深琥珀"语义是"pet 周边文字"，暗底必须变亮。新增 token 时亮暗两份必须同时给。
+策略：**同名字令整体覆盖**，不新增暗色类名。暖深褐矿洞底（`--background: oklch(0.21 0.012 70)`），卡片亮一档（0.26），主色提亮为亮矿工绿（`oklch(0.72 0.16 150)`），琥珀金整体提亮发光。特例：`--pet-amber-deep` 在暗底反转为**亮金文字档**（`oklch(0.85 0.13 82)`）——"深琥珀"语义是"pet 周边文字"，暗底必须变亮。`--pet-amber-deep-foreground` 暗色为深金褐 oklch(0.32 0.06 82)（≈#422F07），与亮金底 8:1；pet 实底（徽章）文字必须用它，禁止 text-white。新增 token 时亮暗两份必须同时给。
+
+### 2.3 字号五档刻度
+
+`@theme` 中定义（唯一来源）：`--text-xs: 11px`（覆盖 Tailwind v4 默认 12px）/ `--text-cap: 12.5px` / `--text-sm: 14px`（复用默认）/ `--text-base: 16px`（复用默认）/ `--text-display: 22px`。
+
+- **行高语义**：text-cap / text-display 不定义行高变体，行高继承父级；显式 `leading-*` 恒覆盖档位行高。
+- **白名单（免归档）**：`sm:text-[26px]`（EmptyState 桌面放大档）、`.pet-heart` 13px / `.pet-burst` 14px（装饰 emoji 尺寸，styles.css）、`.md-body` em 相对值系列（相对排版随父级缩放）。
+- **硬规则**：业务代码禁止新增字号任意值（`text-[Npx]`），新场景就近选档。
 
 ## 3. 背景与纹理
 
@@ -51,6 +60,7 @@
   - **硬规则：要淡就直接把透明度画进纹理本身，禁止用整面 `::before` 蒙板调淡**（`inset:0` + 背景色 + 高 opacity 的蒙板会压住所有不建堆叠上下文的子内容，曾把侧栏/关于页洗成幽灵文字，见 AGENTS.md 踩坑记录）。
 - **顶部暖光** `.ambient-glow`：矿灯金 + 矿工绿双径向渐变，仅主内容区顶部。
 - **统一轻投影** `.shadow-soft` / `.shadow-soft-lg`（`.dark` 下有加重替换版）。组件统一用这两个 class，不自造 box-shadow。
+- **统一全屏遮罩** `.overlay-dim`（rgb(0 0 0 / 0.5)，无 blur——低端设备 GPU 合成友好，浓度补偿层级感）；全站弹层/抽屉遮罩一律消费它，定位与 z 层级由调用处承担。
 
 ## 4. 页面区块规范
 
@@ -137,9 +147,10 @@
 2. **图标描边禁用透明度修饰符**：`text-foreground/75` 这类 alpha 修饰符在 Tailwind v4 走 `color-mix(oklab,…)`，Chromium 对带 alpha 的 oklab SVG 描边有渲染 bug（笔画隐形）。要浅就用纯色 token（如 `--rail-icon`）。
 3. **非整刻度尺寸用任意值语法**：`h-[18px]`（Tailwind v4 动态刻度坑）。
 4. **i18n**：界面文案一律 `t("key")`；service 层用 `translate(readLang(), "key")`；新增键中英字典同步加（zh 为权威），跑 `tsc` 校验 + 核对键数。
-5. **z-index 分层**：桌宠 z-30 < H5 侧栏抽屉 z-40 < 抽屉/弹窗遮罩 z-50 < **阿寻设置面板 z-[60]（最上层）**。顶栏入口的设置面板必须 `createPortal` 挂到 `document.body` 并按触发按钮 `getBoundingClientRect()` 计算 fixed 坐标——header 的 `backdrop-blur` 构成 z-auto 层叠上下文，面板留在 header 内部时会被任何后绘制的主内容/抽屉盖住（2026-10-06 踩坑：空态 Hero 卡压设置面板）。桌宠齿轮入口的面板在桌宠自身 z-30 上下文内即可（抽屉/弹窗打开时桌宠本就被遮罩盖住，不可达）。
+5. **z-index 分层**：桌宠 z-30 < H5 侧栏抽屉 z-40 < 抽屉/弹窗遮罩 z-50 < **阿寻设置面板 z-[60]（最上层）**。顶栏入口的设置面板必须 `createPortal` 挂到 `document.body` 并按触发按钮 `getBoundingClientRect()` 计算 fixed 坐标——面板留在 header 内部时会被任何后绘制的主内容/抽屉盖住（2026-10-06 踩坑：空态 Hero 卡压设置面板）。桌宠齿轮入口的面板在桌宠自身 z-30 上下文内即可（抽屉/弹窗打开时桌宠本就被遮罩盖住，不可达）。
 6. **头像/装饰图用本地资产**（Vite 打包），废弃带鉴权参数的 CDN 图床。
 7. 改主题只动 `styles.css` token + 点名覆盖段；发现组件里出现具体色值即回改。
+8. **键盘焦点**：全局 `:focus-visible` 兜底在 styles.css `@layer base`（outline 2px var(--color-ring)）；ui/* 自带 ring 体系优先（utilities 层压制兜底，无双重环）；新增交互元素禁止裸奔无焦点样式，也不必手写 focus 类。
 
 ## 8. 参考索引
 

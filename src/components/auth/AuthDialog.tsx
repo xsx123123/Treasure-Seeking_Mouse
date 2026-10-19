@@ -150,20 +150,20 @@ export function AuthDialog({
     }
   }
 
-  const fieldCls = "h-10 rounded-lg border-border bg-card shadow-sm focus-visible:border-helix focus-visible:ring-2 focus-visible:ring-helix/20";
+  const fieldCls = "h-10 rounded-lg border-border bg-card shadow-soft focus-visible:border-helix focus-visible:ring-2 focus-visible:ring-helix/20";
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!o ? onClose() : undefined)}>
       <DialogContent className="sm:max-w-[400px] border-border bg-card text-foreground shadow-soft-lg">
         <DialogHeader>
-          <DialogTitle className="font-display text-[18px] font-semibold tracking-tight">
+          <DialogTitle className="font-display text-base font-semibold tracking-tight">
             {mode === "login"
               ? t("auth.loginTitle")
               : mode === "register"
                 ? (step === "verify" ? t("auth.verifyTitle") : t("auth.registerTitle"))
                 : t("auth.forgotTitle")}
           </DialogTitle>
-          <p className="text-[12.5px] text-muted-foreground">
+          <p className="text-cap text-muted-foreground">
             {isOfflineMode
               ? t("auth.localSub")
               : mode === "login"
@@ -236,7 +236,7 @@ export function AuthDialog({
           ) : null}
 
           {msg ? (
-            <p className={`rounded-md border px-3 py-2 text-[12.5px] leading-relaxed ${msg.type === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-helix/30 bg-helix-soft text-helix"}`}>
+            <p className={`rounded-md border px-3 py-2 text-cap leading-relaxed ${msg.type === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-helix/30 bg-helix-soft text-helix"}`}>
               {msg.text}
             </p>
           ) : null}
@@ -270,7 +270,7 @@ export function AuthDialog({
             </Button>
           ) : null}
 
-          <div className="flex items-center justify-between pt-1 text-[12.5px] text-muted-foreground">
+          <div className="flex items-center justify-between pt-1 text-cap text-muted-foreground">
             {mode === "login" ? (
               <>
                 <button type="button" className="story-link hover:text-helix" onClick={() => switchMode("register")}>{t("auth.createAccount")}</button>

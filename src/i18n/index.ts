@@ -131,6 +131,12 @@ const TOOL_LABELS_EN: Record<string, string> = {
   seqout_get_platform_totals: "Platform totals",
   seqout_beacon_info: "Beacon info",
   seqout_beacon_runs: "Beacon runs",
+  gene_search: "Search genes (MyGene)",
+  gene_get: "Gene details (MyGene)",
+  variant_search: "Search variants (MyVariant)",
+  variant_get: "Variant details (MyVariant)",
+  clinvar_search: "Search clinical evidence (ClinVar)",
+  clinvar_get: "Clinical evidence details (ClinVar)",
 };
 
 const TOOL_LABELS: Record<Lang, Record<string, string>> = { zh: TOOL_LABELS_ZH, en: TOOL_LABELS_EN };

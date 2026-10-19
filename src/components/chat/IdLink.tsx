@@ -127,7 +127,7 @@ export function IdLink({
 
   const content = (
     <div className="space-y-2">
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         <span className="font-display font-semibold text-foreground/70">{linkTypeLabel(lang, match.type)}</span>
         <span className="mx-1">·</span>
         <span className="font-mono">{match.id}</span>
@@ -140,14 +140,14 @@ export function IdLink({
         </div>
       ) : litTitle ? (
         <div>
-          <p className="line-clamp-3 text-[12px] font-medium leading-relaxed text-foreground/90">{litTitle}</p>
-          {litMeta ? <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground">{litMeta}</p> : null}
+          <p className="line-clamp-3 text-cap font-medium leading-relaxed text-foreground/90">{litTitle}</p>
+          {litMeta ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{litMeta}</p> : null}
         </div>
       ) : litState === "done" ? (
-        <p className="text-[11px] text-muted-foreground/70">{t("idlink.noPaper")}</p>
+        <p className="text-xs text-muted-foreground/70">{t("idlink.noPaper")}</p>
       ) : null}
       {summary && !litTitle ? (
-        <p className="line-clamp-4 text-[12px] leading-relaxed text-foreground/85">{summary}</p>
+        <p className="line-clamp-4 text-cap leading-relaxed text-foreground/85">{summary}</p>
       ) : null}
       {/* 操作行：左侧两个按钮成组，右侧原始页链接贴边。
           不用 flex-wrap + ml-auto：英文文案较长时会换行、把「原始页」单独挤到第二行右侧，
@@ -157,7 +157,7 @@ export function IdLink({
           <button
             type="button"
             onClick={copyId}
-            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border bg-secondary px-2 py-1 text-[11px] text-secondary-foreground transition-colors hover:bg-accent"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border bg-secondary px-2 py-1 text-xs text-secondary-foreground transition-colors hover:bg-accent"
           >
             {copied ? <Check size={11} className="text-helix" /> : <Copy size={11} />}
             {copied ? t("idlink.copied") : t("idlink.copyId")}
@@ -165,7 +165,7 @@ export function IdLink({
           <button
             type="button"
             onClick={showEvidence}
-            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border bg-secondary px-2 py-1 text-[11px] text-secondary-foreground transition-colors hover:bg-accent"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border bg-secondary px-2 py-1 text-xs text-secondary-foreground transition-colors hover:bg-accent"
           >
             <BookOpen size={11} />
             {t("idlink.viewEvidence")}
@@ -175,7 +175,7 @@ export function IdLink({
           href={match.url}
           target="_blank"
           rel="noreferrer noopener"
-          className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-helix"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-helix"
         >
           <ExternalLink size={11} />
           {t("idlink.original")}

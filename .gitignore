@@ -29,3 +29,6 @@ server/.stats.json
 # QMuse CLI 本地状态与导入诊断产物
 .qoder/
 **/.qmuse/import-errors/
+
+# 本地自托管运行数据（账号/历史/统计落盘）
+server/data/

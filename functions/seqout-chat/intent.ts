@@ -6,8 +6,8 @@
 // 归一化结果回灌模型作为后续工具参数的依据；校验失败由调用方识别（判别联合 ok:false）并降级为
 // 现有工具直连行为，绝不猜值。
 
-/** 意图目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=文献 */
-export const INTENT_TARGETS = ['geo', 'sra', 'ena', 'ngdc', 'literature'] as const;
+/** 意图目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=文献，gene=基因注释，variant=变异与临床证据 */
+export const INTENT_TARGETS = ['geo', 'sra', 'ena', 'ngdc', 'literature', 'gene', 'variant'] as const;
 export type IntentTarget = (typeof INTENT_TARGETS)[number];
 
 export interface ResearchIntentFilters {
@@ -21,6 +21,8 @@ export interface ResearchIntentFilters {
   condition?: string;
   /** 是否要求含对照组（仅接受真布尔） */
   has_control?: boolean;
+  /** 基因组版本（归一化到 hg19/hg38） */
+  assembly?: string;
 }
 
 export interface ResearchIntent {
@@ -106,6 +108,23 @@ export function normalizeAssay(raw: string): NormalizeResult {
   return { ok: false, reason: `assay「${v}」不在 library_strategy 词表内（如 RNA-Seq / scRNA-Seq / ATAC-Seq / ChIP-Seq / WGS）` };
 }
 
+// ---------- assembly：基因组版本别名 → hg19/hg38 ----------
+
+/** assembly 归一化别名表：key 为小写化+去空白后的别名（GRC 官方名与社区缩写），value 为规范值 */
+const ASSEMBLY_ALIASES: Record<string, string> = {
+  hg19: 'hg19', grch37: 'hg19', grc37: 'hg19', b37: 'hg19',
+  hg38: 'hg38', grch38: 'hg38', grc38: 'hg38', b38: 'hg38',
+};
+
+/** assembly 归一化：别名表（大小写/空白不敏感）→ hg19/hg38 规范值；未收录即 ok:false，不猜值 */
+export function normalizeAssembly(raw: string): NormalizeResult {
+  const original = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  if (!original) return { ok: false, reason: 'assembly 为空' };
+  const hit = ASSEMBLY_ALIASES[original.replace(/\s+/g, '').toLowerCase()];
+  if (hit) return { ok: true, value: hit, note: hit === original ? undefined : `assembly: ${original} → ${hit}` };
+  return { ok: false, reason: `assembly「${original}」无法识别（合法取值 hg19（GRCh37）/ hg38（GRCh38））` };
+}
+
 // ---------- IR 整体验验 ----------
 
 const QUESTION_MAX = 500;
@@ -140,11 +159,11 @@ export function parseResearchIntent(raw: unknown): ParseIntentResult {
   const question = questionRaw.replace(/\s+/g, ' ').trim().slice(0, QUESTION_MAX);
 
   const targetsRaw = raw.targets;
-  if (!Array.isArray(targetsRaw) || targetsRaw.length === 0) return { ok: false, reason: 'targets 必须是非空数组（取值 geo/sra/ngdc/literature）' };
+  if (!Array.isArray(targetsRaw) || targetsRaw.length === 0) return { ok: false, reason: `targets 必须是非空数组（取值 ${INTENT_TARGETS.join('/')}）` };
   const targets: IntentTarget[] = [];
   for (const t of targetsRaw) {
     if (typeof t !== 'string' || !(INTENT_TARGETS as readonly string[]).includes(t)) {
-      return { ok: false, reason: `targets 含未知目标「${String(t)}」（取值 geo/sra/ngdc/literature）` };
+      return { ok: false, reason: `targets 含未知目标「${String(t)}」（取值 ${INTENT_TARGETS.join('/')}）` };
     }
     if (!targets.includes(t as IntentTarget)) targets.push(t as IntentTarget);
   }
@@ -179,6 +198,13 @@ export function parseResearchIntent(raw: unknown): ParseIntentResult {
   if (f.has_control !== undefined && f.has_control !== null) {
     if (typeof f.has_control !== 'boolean') return { ok: false, reason: 'filters.has_control 必须是布尔值' };
     filters.has_control = f.has_control;
+  }
+  if (f.assembly !== undefined && f.assembly !== null && f.assembly !== '') {
+    if (typeof f.assembly !== 'string') return { ok: false, reason: 'filters.assembly 必须是字符串' };
+    const n = normalizeAssembly(f.assembly);
+    if (n.ok === false) return { ok: false, reason: n.reason };
+    filters.assembly = n.value;
+    if (n.note) notes.push(n.note);
   }
 
   if (typeof raw.needs_literature !== 'boolean') return { ok: false, reason: 'needs_literature 必须是布尔值' };

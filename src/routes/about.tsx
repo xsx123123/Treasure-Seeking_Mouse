@@ -6,6 +6,7 @@ import {
   BarChart3,
   BookOpen,
   Database,
+  Dna,
   ExternalLink,
   Github,
   Hammer,
@@ -36,6 +37,7 @@ const ONLINE_DEMO = "https://render.qmuse.pub/p/muse/2842191818002612/index.html
 // 6 个核心亮点：图标固定，标题/描述按语言取词（与 README「功能一览」逐条对齐）
 const HIGHLIGHTS = [
   { icon: Database, titleKey: "about.h.1.title", descKey: "about.h.1.desc" },
+  { icon: Dna, titleKey: "about.h.7.title", descKey: "about.h.7.desc" },
   { icon: Link2, titleKey: "about.h.2.title", descKey: "about.h.2.desc" },
   { icon: Trophy, titleKey: "about.h.3.title", descKey: "about.h.3.desc" },
   { icon: BarChart3, titleKey: "about.h.4.title", descKey: "about.h.4.desc" },
@@ -51,6 +53,7 @@ const STACK_TAIL: Record<"zh" | "en", string[]> = {
 
 /** 组学数据源与文献索引分开展示，避免把两类来源混为一谈。 */
 const DATABASES = ["GEO", "SRA", "ENA", "GSA", "NGDC"];
+const GENE_SOURCES = ["MyGene", "MyVariant", "ClinVar"];
 const LITERATURE_SOURCES = ["PubMed", "Europe PMC", "Crossref", "OpenAlex", "Semantic Scholar", "CORE", "arXiv", "bioRxiv", "medRxiv"];
 
 // 证据链四步（与 README「Evidence Chain」一节逐条对齐）
@@ -60,9 +63,9 @@ const EVIDENCE_STEPS = ["about.evidence.1", "about.evidence.2", "about.evidence.
 const LIT_ENV_KEYS = ["NCBI_EMAIL", "NCBI_API_KEY", "CROSSREF_MAILTO", "OPENALEX_MAILTO", "OPENALEX_API_KEY", "SEMANTIC_SCHOLAR_API_KEY", "CORE_API_KEY"];
 
 const linkBtn =
-  "flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-[12.5px] text-muted-foreground shadow-sm transition-colors hover:border-helix/50 hover:text-helix";
+  "flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-cap text-muted-foreground shadow-soft transition-colors hover:border-helix/50 hover:text-helix";
 const sectionCls = "mt-4 rounded-2xl border border-border bg-card p-5 shadow-soft";
-const h2Cls = "font-display flex items-center gap-2 text-[17px] font-semibold tracking-tight";
+const h2Cls = "font-display flex items-center gap-2 text-base font-semibold tracking-tight";
 
 function AboutPage(): React.ReactElement {
   const { t, lang } = useI18n();
@@ -89,7 +92,7 @@ function AboutPage(): React.ReactElement {
           >
             <ArrowLeft size={14} /> {t("about.back")}
           </button>
-          <span className="hidden items-center gap-2 text-[12.5px] text-muted-foreground sm:flex">
+          <span className="hidden items-center gap-2 text-cap text-muted-foreground sm:flex">
             <BrandMark size={16} />
             {t("brand.name")}
           </span>
@@ -116,9 +119,9 @@ function AboutPage(): React.ReactElement {
           <h2 className={h2Cls}>
             <PawPrint size={16} className="text-pet-amber-deep" /> {t("about.why")}
           </h2>
-          <p className="mt-2 text-[13px] font-medium leading-relaxed text-foreground/85">{t("about.why.1")}</p>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t("about.why.2")}</p>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t("about.why.3")}</p>
+          <p className="mt-2 text-cap font-medium leading-relaxed text-foreground/85">{t("about.why.1")}</p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.why.2")}</p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.why.3")}</p>
         </section>
 
         {/* 阿寻能挖的数据库（与 README 同名一节对齐） */}
@@ -126,24 +129,35 @@ function AboutPage(): React.ReactElement {
           <h2 className={h2Cls}>
             <Database size={16} className="text-pet-amber-deep" /> {t("about.dbs")}
           </h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t("about.dbsIntro")}</p>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t("about.gsaPolicy")}</p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.dbsIntro")}</p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.gsaPolicy")}</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {DATABASES.map((db) => (
               <span
                 key={db}
-                className="rounded-full border border-helix/25 bg-helix-soft/50 px-2.5 py-1 font-mono text-[11.5px] text-helix"
+                className="rounded-full border border-helix/25 bg-helix-soft/50 px-2.5 py-1 font-mono text-xs text-helix"
               >
                 {db}
               </span>
             ))}
           </div>
-          <p className="mt-4 text-[12.5px] font-medium text-foreground/80">{t("about.literatureSources")}</p>
+          <p className="mt-4 text-cap font-medium text-foreground/80">{t("about.geneSources")}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {GENE_SOURCES.map((source) => (
+              <span
+                key={source}
+                className="rounded-full border border-helix/25 bg-helix-soft/50 px-2.5 py-1 font-mono text-xs text-helix"
+              >
+                {source}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 text-cap font-medium text-foreground/80">{t("about.literatureSources")}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {LITERATURE_SOURCES.map((source) => (
               <span
                 key={source}
-                className="rounded-full border border-pet-amber-deep/25 bg-pet-amber-soft/50 px-2.5 py-1 font-mono text-[11.5px] text-pet-amber-deep"
+                className="rounded-full border border-pet-amber-deep/25 bg-pet-amber-soft/50 px-2.5 py-1 font-mono text-xs text-pet-amber-deep"
               >
                 {source}
               </span>
@@ -156,13 +170,13 @@ function AboutPage(): React.ReactElement {
           <h2 className={h2Cls}>
             <Link2 size={16} className="text-pet-amber-deep" /> {t("about.evidence")}
           </h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t("about.evidenceIntro")}</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5 text-[12.5px] leading-relaxed text-foreground/85">
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.evidenceIntro")}</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-cap leading-relaxed text-foreground/85">
             {EVIDENCE_STEPS.map((k) => (
               <li key={k}>{t(k)}</li>
             ))}
           </ol>
-          <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/80">{t("about.evidenceNote")}</p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground/80">{t("about.evidenceNote")}</p>
         </section>
 
         {/* 核心亮点（与 README 功能一览逐条对齐） */}
@@ -173,11 +187,11 @@ function AboutPage(): React.ReactElement {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {HIGHLIGHTS.map((h) => (
               <div key={h.titleKey} className="rounded-xl border border-border/70 bg-background/50 p-3.5">
-                <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+                <h3 className="flex items-center gap-1.5 text-cap font-semibold text-foreground">
                   <h.icon size={14} className="text-helix" />
                   {t(h.titleKey)}
                 </h3>
-                <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">{t(h.descKey)}</p>
+                <p className="mt-1.5 text-cap leading-relaxed text-muted-foreground">{t(h.descKey)}</p>
               </div>
             ))}
           </div>
@@ -188,7 +202,7 @@ function AboutPage(): React.ReactElement {
           <h2 className={h2Cls}>
             <Database size={16} className="text-pet-amber-deep" /> {t("about.mcpTitle")}
           </h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{t("about.mcpNote")}</p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.mcpNote")}</p>
           <a
             href={`${REPO}/tree/main/functions/seqout-chat`}
             target="_blank"
@@ -204,21 +218,21 @@ function AboutPage(): React.ReactElement {
           <h2 className={h2Cls}>
             <Hammer size={16} className="text-pet-amber-deep" /> {t("about.deploy")}
           </h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">
             {t("about.deployDesc", { env: "server/.env" })}
           </p>
-          <pre className="mt-3 overflow-x-auto rounded-xl bg-secondary/60 p-3 font-mono text-[12px] leading-relaxed text-foreground/85">
+          <pre className="mt-3 overflow-x-auto rounded-xl bg-secondary/60 p-3 font-mono text-cap leading-relaxed text-foreground/85">
 {`cp server/.env.example server/.env   # ${t("about.deployKey")}
 make docker-start                    # ${t("about.deploySteps")}`}
           </pre>
-          <p className="mt-2 text-[11.5px] text-muted-foreground/80">
+          <p className="mt-2 text-xs text-muted-foreground/80">
             {t("about.deployOpen", { url: "http://localhost:10087/" })}
           </p>
-          <h3 className="mt-4 text-[13px] font-semibold text-foreground/85">{t("about.litCfg")}</h3>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{t("about.litCfgDesc")}</p>
+          <h3 className="mt-4 text-cap font-semibold text-foreground/85">{t("about.litCfg")}</h3>
+          <p className="mt-1.5 text-cap leading-relaxed text-muted-foreground">{t("about.litCfgDesc")}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {LIT_ENV_KEYS.map((k) => (
-              <code key={k} className="rounded border border-border bg-secondary/50 px-2 py-0.5 font-mono text-[10.5px] text-foreground/75">
+              <code key={k} className="rounded border border-border bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground/75">
                 {k}
               </code>
             ))}
@@ -232,12 +246,12 @@ make docker-start                    # ${t("about.deploySteps")}`}
           </h2>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {stack.map((s) => (
-              <span key={s} className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-[11.5px] text-foreground/80">
+              <span key={s} className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-xs text-foreground/80">
                 {s}
               </span>
             ))}
           </div>
-          <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground/75">
+          <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground/75">
             <Languages size={13} className="text-helix" />
             {t("about.stackNote")} · 中文 / English
           </p>
@@ -248,12 +262,12 @@ make docker-start                    # ${t("about.deploySteps")}`}
           <h2 className={h2Cls}>
             <Sparkles size={16} className="text-pet-amber-deep" /> {t("about.thanks")}
           </h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">
             {t("about.authors", { qmuse: "QMuse" })}
           </p>
         </section>
 
-        <p className="mt-4 text-center font-mono text-[11px] text-muted-foreground/70">
+        <p className="mt-4 text-center font-mono text-xs text-muted-foreground/70">
           {t("about.footer")} · {t("about.version")}
         </p>
 

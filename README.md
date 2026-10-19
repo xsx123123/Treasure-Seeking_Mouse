@@ -12,7 +12,7 @@
   </p>
 </div>
 
-Research Treasure Mouse is a chat-based research assistant for finding public omics datasets and research literature. Ask a question in natural language; the backend selects the appropriate read-only tool, queries the source API, and returns a concise answer with structured dataset or paper cards. Literature searches can run across multiple indexes and are automatically connected to related GEO identifiers, studies and papers when the evidence supports that link.
+Research Treasure Mouse is a chat-based research assistant for finding public omics datasets, research literature, gene annotations, human variant annotations and clinical variant evidence. Ask a question in natural language; the backend selects the appropriate read-only tool, queries the source API, and returns a concise answer with structured dataset, gene, variant or paper cards. Literature searches can run across multiple indexes and are automatically connected to related GEO identifiers, studies and papers when the evidence supports that link.
 
 The project is designed for self-hosting. Any OpenAI-compatible model gateway can be used, and the frontend can run as a guest without Supabase. The Chinese product name is **科研寻宝鼠**; its desk pet is called **A-Xun** (阿寻).
 
@@ -25,6 +25,14 @@ The project is designed for self-hosting. Any OpenAI-compatible model gateway ca
 - GEO, SRA, ENA and GSA through the [seqout](https://seqout.org) read-only API
 - NGDC Genome Warehouse and GenBase public endpoints
 - Project, sample, run, accession, metadata, statistics and download-link queries
+
+### Genes, variants and clinical evidence
+
+- Gene lookup and cross-database identifier mapping (Entrez, Ensembl, UniProt) through the [MyGene](https://mygene.info) API; batch queries accept up to 100 identifiers and report per-query misses
+- Human variant annotation aggregated from dbSNP, ClinVar, gnomAD and CADD through [MyVariant](https://myvariant.info); explicit hg19/hg38 assembly handling, rsID, genomic HGVS and region queries
+- Clinical variant evidence from ClinVar through NCBI E-utilities: VCV/RCV records with germline, somatic and oncogenicity classifications, review status and submitter conflicts
+
+These tools compose with the dataset and literature searches into a gene-centric research loop: start from a gene, find related datasets and papers, then drill into variants and clinical evidence.
 
 ### Literature
 
@@ -60,6 +68,7 @@ The active literature search returns normalized paper cards, while the evidence-
 - GSE/GSM/GO/PMID links that open metadata or literature evidence
 - Nine-source literature search: PubMed, Europe PMC, Crossref, OpenAlex, Semantic Scholar, CORE, arXiv, bioRxiv and medRxiv
 - Automatic literature-to-GEO alignment for evidence discovery
+- Gene, variant and clinical evidence cards: MyGene identifier mapping, MyVariant annotations with hg19/hg38 assembly choice, ClinVar classifications and submitter conflicts
 - Guest mode with local sessions; optional Supabase or self-hosted accounts
 - Login history, leaderboard and usage statistics in self-hosted mode
 - Draggable desk pet, activity states and achievement badges
@@ -129,16 +138,39 @@ Browser
   -> SSE chat endpoint
   -> Node self-hosted service or platform Edge Function
        -> OpenAI-compatible LLM tool-calling loop
-       -> seqout / NGDC / literature provider APIs
+       -> seqout / NGDC / MyGene / MyVariant / ClinVar / literature provider APIs
 ```
 
 The backend keeps provider credentials private, normalizes provider-specific responses into one paper schema, and sends cards separately from the model context. The frontend renders the stream, cards, evidence links and pet events.
+
+Repository layout (after the 2026-10-18 cleanup, 21 root entries):
+
+```text
+├── src/                     # React SPA (routes / components / services / i18n / pet assets)
+│   ├── presentation-contract.ts   # shared presentation contract types (migrated from island)
+│   └── supabase/            # platform-generated client, hands off
+├── functions/seqout-chat/   # Edge Function: tool schemas, adapters, SSE orchestration
+│   ├── biomed/              # MyGene / MyVariant / ClinVar adapters
+│   ├── prompts/             # editable zh/en system prompts (run npm run sync:prompts)
+│   └── tests/               # offline regression suites + fixtures
+├── server/                  # self-hosted Node service (chat + accounts + stats)
+├── scripts/                 # paper_evidence.py and its tests
+├── deploy/                  # Dockerfile (dual target) + compose + nginx
+├── docs/                    # bilingual READMEs, ARC notes, white paper, badges
+├── public/                  # static favicon
+├── archive/                 # frozen historical projects (qmuse/weixin/crawler/island, see archive/README.md)
+├── index.html               # SPA shell with anti-flash theme bootstrap
+├── vite.config.ts / tsconfig.json / components.json
+├── package.json / pnpm-lock.yaml / skills-lock.json
+└── Makefile / README.md / AGENTS.md / LICENSE / .gitignore / .dockerignore
+```
 
 Important locations:
 
 | Path | Responsibility |
 | --- | --- |
 | `functions/seqout-chat/index.ts` | Tool schemas, provider adapters and SSE orchestration |
+| `functions/seqout-chat/biomed/` | Gene, variant and ClinVar tool adapters (MyGene / MyVariant / ClinVar) |
 | `functions/seqout-chat/prompts/` | Editable Chinese and English system prompts |
 | `src/services/seqoutChat.ts` | SSE client and event parsing |
 | `src/components/chat/DatasetCard.tsx` | Dataset and paper cards |
@@ -146,6 +178,7 @@ Important locations:
 | `server/account-api.mjs` | Local accounts, history and leaderboard APIs |
 | `deploy/` | Dockerfile, compose and nginx configuration |
 | `docs/literature-search-and-evidence-chain.md` | Literature integration and evidence-chain design |
+| `archive/` | Archived historical projects and experiments (see archive/README.md) |
 
 ## Development Checks
 

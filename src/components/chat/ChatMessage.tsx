@@ -119,7 +119,7 @@ export function ChatMessage({
             {copied ? <Check size={13} className="text-helix" /> : <Copy size={13} />}
           </ActionButton>
         </div>
-        <div className="max-w-[85%] rounded-xl rounded-br-sm bg-primary px-4 py-2.5 text-[14px] leading-relaxed text-primary-foreground shadow-soft whitespace-pre-wrap break-words">
+        <div className="max-w-[85%] rounded-xl rounded-br-sm bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-soft whitespace-pre-wrap break-words">
           {msg.content}
         </div>
         <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
@@ -138,7 +138,7 @@ export function ChatMessage({
         <BrandMark size={15} />
       </span>
       <div className="min-w-0 max-w-[92%] flex-1">
-        <p className="mb-1 flex items-baseline gap-2 text-[11px] text-muted-foreground/80">
+        <p className="mb-1 flex items-baseline gap-2 text-xs text-muted-foreground/80">
           <span className="font-display font-semibold tracking-wide text-foreground/70">{t("brand.name")}</span>
           {visibleToolLogs.length > 0 && !msg.streaming ? (
             <span className="font-mono opacity-70">
@@ -162,7 +162,7 @@ export function ChatMessage({
               />
             ) : null}
             {!msg.content && msg.streaming ? (
-              <span className="text-[13px] text-muted-foreground">{t("msg.thinking")}</span>
+              <span className="text-cap text-muted-foreground">{t("msg.thinking")}</span>
             ) : null}
             {msg.streaming && msg.content ? (
               <span className="typing-caret inline-block" aria-hidden />
@@ -182,7 +182,7 @@ export function ChatMessage({
         {litDetail ? <LiteratureDetailDialog card={litDetail} onClose={() => setLitDetail(null)} /> : null}
         {!msg.streaming && items.length > 0 ? <SuggestionBlock items={items} onPick={onPickSuggestion} /> : null}
         {msg.error ? (
-          <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-[13px] text-destructive">
+          <p className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-cap text-destructive">
             {msg.error}
           </p>
         ) : null}
