@@ -96,7 +96,7 @@ function RankRow({
             {row.name}
           </span>
           {highlight ? (
-            <span className="shrink-0 rounded-full bg-pet-amber/15 px-1.5 py-0.5 font-mono text-[9.5px] text-pet-amber-deep">
+            <span className="shrink-0 rounded-full bg-pet-amber/15 px-1.5 py-0.5 font-mono text-[11px] text-pet-amber-deep">
               {t("board.me")}
             </span>
           ) : null}
@@ -122,7 +122,7 @@ function RankRow({
           <Sparkles size={12} className="text-pet-amber" />
           {m.treasures}
         </span>
-        <span className="block font-mono text-[9.5px] text-muted-foreground">{t("board.treasures")}</span>
+        <span className="block font-mono text-[11px] text-muted-foreground">{t("board.treasures")}</span>
       </span>
     </li>
   );

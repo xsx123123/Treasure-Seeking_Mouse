@@ -672,7 +672,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
               <path d="M2 9h20M9 3l-3 6 6 12M15 3l3 6-6 12" className="stroke-pet-gold-soft" fill="none" strokeWidth="0.9" />
             </svg>
             {gemCount > 1 ? (
-              <span className="absolute -right-1 -bottom-1 rounded-full bg-pet-amber-deep px-1 font-mono text-[9px] text-pet-amber-deep-foreground">×{gemCount}</span>
+              <span className="absolute -right-1 -bottom-1 rounded-full bg-pet-amber-deep px-1 font-mono text-[11px] text-pet-amber-deep-foreground">×{gemCount}</span>
             ) : null}
           </span>
         ) : null}
@@ -691,7 +691,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
         >
           <img key={chestPopKey} src={IMG_CHEST} alt={t("pet.chest")} draggable={false} className={`pointer-events-none block h-full w-full drop-shadow-[0_3px_5px_rgb(0_0_0/0.15)] ${chestPopKey > 0 ? "pet-chest-pop" : ""}`} />
           {treasure > 0 ? (
-            <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-pet-amber-deep px-1 text-center font-mono text-[9px] leading-[17px] text-pet-amber-deep-foreground shadow-sm">{treasure > 99 ? "99+" : treasure}</span>
+            <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-pet-amber-deep px-1 text-center font-mono text-[11px] leading-[17px] text-pet-amber-deep-foreground shadow-sm">{treasure > 99 ? "99+" : treasure}</span>
           ) : null}
         </button>
         {earned.map((a, i) => (
@@ -715,7 +715,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
       </div>
 
       {/* 小字提示：触摸端无右键，提示长按 */}
-      <p className="mt-0.5 text-center font-mono text-[9px] text-muted-foreground/60">
+      <p className="mt-0.5 text-center font-mono text-[11px] text-muted-foreground/60">
         {t("pet.hint", { mode: isMobile ? t("pet.modeLongPress") : t("pet.modeRightClick") })}
       </p>
     </div>

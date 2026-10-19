@@ -73,7 +73,7 @@
   --secondary: #F6F3EE;                              /* 便签与次级卡片底 */
   --secondary-foreground: #292524;
   --muted: #F6F3EE;                                  /* 浅米便签 */
-  --muted-foreground: #78716C;                       /* 温暖次级灰 */
+  --muted-foreground: #57534E;                       /* stone-600 档，主底 7.2:1 */
   --accent: #F1EDE6;                                 /* hover 浅米 */
   --accent-foreground: #292524;
   --destructive: #DC2626;                            /* red-600 档 */
@@ -161,6 +161,14 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+  }
+
+  /* 键盘焦点兜底：覆盖未被 ui 组件 ring 体系照顾的交互元素（业务裸 button/a/[tabindex]）。
+     ui/* 的 focus-visible:outline-none 在 utilities 层、特异性更高，会压制本规则 → 无双重环。
+     outline 非动效，prefers-reduced-motion 下仍可见。 */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
   }
 
   ::selection {

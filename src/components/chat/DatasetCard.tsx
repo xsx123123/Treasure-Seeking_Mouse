@@ -134,14 +134,14 @@ export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostM
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           {prefix ? (
-            <span className={`shrink-0 rounded px-1 py-px font-mono text-[9px] font-semibold leading-none tracking-wider ring-1 ${PREFIX_COLORS[prefix] ?? "bg-muted text-muted-foreground ring-border"}`}>
+            <span className={`shrink-0 rounded px-1 py-px font-mono text-[11px] font-semibold leading-none tracking-wider ring-1 ${PREFIX_COLORS[prefix] ?? "bg-muted text-muted-foreground ring-border"}`}>
               {prefix}
             </span>
           ) : null}
-          {gsaPublic ? <span className="shrink-0 rounded bg-helix-soft px-1 py-px text-[9px] font-medium text-helix ring-1 ring-helix/20">{t("card.gsaMirror")}</span> : null}
-          {controlled ? <a href={DAC_URL} target="_blank" rel="noreferrer noopener" className="shrink-0 rounded bg-pet-amber/15 px-1 py-px text-[9px] font-medium text-pet-amber ring-1 ring-pet-amber/30">{t("card.controlled")}</a> : null}
+          {gsaPublic ? <span className="shrink-0 rounded bg-helix-soft px-1 py-px text-[11px] font-medium text-helix ring-1 ring-helix/20">{t("card.gsaMirror")}</span> : null}
+          {controlled ? <a href={DAC_URL} target="_blank" rel="noreferrer noopener" className="shrink-0 rounded bg-pet-amber/15 px-1 py-px text-[11px] font-medium text-pet-amber ring-1 ring-pet-amber/30">{t("card.controlled")}</a> : null}
           {!card.accession.trim() ? (
-            <span className="shrink-0 rounded bg-secondary px-1 py-px text-[9px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+            <span className="shrink-0 rounded bg-secondary px-1 py-px text-[11px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
           ) : null}
           <a
             href={link ?? undefined}
@@ -210,12 +210,12 @@ function LiteratureResultCard({ card }: { card: CardData }): React.ReactElement 
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-helix ring-1 ring-helix/20">
               {litSourceLabel(meta.literature_source)}
             </span>
-            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[9px] text-helix">OA</span> : null}
+            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[11px] text-helix">OA</span> : null}
             {!meta.pmid && !meta.doi ? (
-              <span className="shrink-0 rounded bg-secondary px-1.5 py-px text-[9px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+              <span className="shrink-0 rounded bg-secondary px-1.5 py-px text-[11px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
             ) : null}
             <span className="font-mono text-[10px] text-muted-foreground">{meta.pmid ? `PMID: ${meta.pmid}` : card.accession}</span>
           </div>
@@ -251,7 +251,7 @@ function GeneResultCard({ card }: { card: CardData }): React.ReactElement {
   return (
     <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-helix/25 bg-card p-3 shadow-sm">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+        <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-helix ring-1 ring-helix/20">
           {t("card.gene")}
         </span>
         {meta.entrez_gene_id ? <span className="font-mono text-[10px] text-muted-foreground">Entrez: {meta.entrez_gene_id}</span> : null}
@@ -292,10 +292,10 @@ function VariantResultCard({ card }: { card: CardData }): React.ReactElement {
   return (
     <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-strand/25 bg-card p-3 shadow-sm">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        <span className="shrink-0 rounded bg-strand/10 px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-strand ring-1 ring-strand/20">
+        <span className="shrink-0 rounded bg-strand/10 px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-strand ring-1 ring-strand/20">
           {t("card.variant")}
         </span>
-        <span className="shrink-0 rounded bg-secondary px-1.5 py-px font-mono text-[9px] font-semibold text-muted-foreground ring-1 ring-border">
+        <span className="shrink-0 rounded bg-secondary px-1.5 py-px font-mono text-[11px] font-semibold text-muted-foreground ring-1 ring-border">
           {t("card.assembly")}: {meta.assembly || "N/A"}
         </span>
       </div>
@@ -328,11 +328,11 @@ function ClinVarResultCard({ card }: { card: CardData }): React.ReactElement {
   return (
     <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-pet-amber/25 bg-card p-3 shadow-sm">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-pet-amber ring-1 ring-pet-amber/30">
+        <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-pet-amber ring-1 ring-pet-amber/30">
           {t("card.clinvar")}
         </span>
         {meta.submitter_conflict === "true" ? (
-          <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px text-[9px] font-medium text-pet-amber ring-1 ring-pet-amber/30">
+          <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px text-[11px] font-medium text-pet-amber ring-1 ring-pet-amber/30">
             {t("card.submitterConflict")}
           </span>
         ) : null}
@@ -359,7 +359,7 @@ function ClinVarResultCard({ card }: { card: CardData }): React.ReactElement {
           ) : null}
         </dl>
       ) : null}
-      <p className="mt-1.5 line-clamp-2 text-[9.5px] leading-snug text-muted-foreground/70">{t("card.clinvarDisclaimer")}</p>
+      <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground/70">{t("card.clinvarDisclaimer")}</p>
       {meta.url ? (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
           <a href={meta.url} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
@@ -393,10 +393,10 @@ export function LiteratureDetailDialog({ card, onClose }: { card: CardData; onCl
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[9px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-helix ring-1 ring-helix/20">
               {litSourceLabel(meta.literature_source)}
             </span>
-            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[9px] text-helix">OA</span> : null}
+            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[11px] text-helix">OA</span> : null}
             {meta.pmid ? <span className="font-mono text-[10px] text-muted-foreground">PMID: {meta.pmid}</span> : null}
             {meta.doi ? <span className="font-mono text-[10px] text-muted-foreground">DOI: {meta.doi}</span> : null}
           </div>

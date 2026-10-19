@@ -25,7 +25,7 @@
 | `--foreground` | `#292524` | 温暖深炭黑正文（非死黑） |
 | `--card` / `--popover` | `#FFFFFF` | 纯白主卡片/浮层 |
 | `--secondary` / `--muted` | `#F6F3EE` | 便签与次级卡片底 |
-| `--muted-foreground` | `#78716C` | 温暖次级灰（说明、placeholder） |
+| `--muted-foreground` | `#57534E` | 温暖次级灰（说明、placeholder）；stone-600 档，两底 ≥6.8:1 |
 | `--accent` | `#F1EDE6` | hover 浅米 |
 | `--border` / `--input` | `#E7E5E4` | 柔和边界线 |
 | `--primary` / `--helix` | `#15803D` | 矿工绿：主行动按钮、状态、强调图标 |
@@ -141,6 +141,7 @@
 5. **z-index 分层**：桌宠 z-30 < H5 侧栏抽屉 z-40 < 抽屉/弹窗遮罩 z-50 < **阿寻设置面板 z-[60]（最上层）**。顶栏入口的设置面板必须 `createPortal` 挂到 `document.body` 并按触发按钮 `getBoundingClientRect()` 计算 fixed 坐标——header 的 `backdrop-blur` 构成 z-auto 层叠上下文，面板留在 header 内部时会被任何后绘制的主内容/抽屉盖住（2026-10-06 踩坑：空态 Hero 卡压设置面板）。桌宠齿轮入口的面板在桌宠自身 z-30 上下文内即可（抽屉/弹窗打开时桌宠本就被遮罩盖住，不可达）。
 6. **头像/装饰图用本地资产**（Vite 打包），废弃带鉴权参数的 CDN 图床。
 7. 改主题只动 `styles.css` token + 点名覆盖段；发现组件里出现具体色值即回改。
+8. **键盘焦点**：全局 `:focus-visible` 兜底在 styles.css `@layer base`（outline 2px var(--color-ring)）；ui/* 自带 ring 体系优先（utilities 层压制兜底，无双重环）；新增交互元素禁止裸奔无焦点样式，也不必手写 focus 类。
 
 ## 8. 参考索引
 
