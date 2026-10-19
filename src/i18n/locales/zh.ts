@@ -114,6 +114,8 @@ export const zh = {
   "empty.groupFit": "适合：{caption}",
   "empty.badgeIdle": "休息中",
   "pet.dismissBubble": "收起阿寻的气泡",
+  "pet.welcome.first": "嗨！我是阿寻 🐹，你的科研寻宝搭档。今天，我们一起发现点新东西吧！",
+  "pet.welcome.returning": "欢迎回来！今天想从论文、数据集，还是新的科研问题开始探索？",
   "empty.sources": "GEO · SRA · ENA · GSA | 数据来源可追溯 | 文献证据可核验",
   "empty.discover.title": "数据发现",
   "empty.discover.alias": "探矿定位",

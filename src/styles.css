@@ -517,6 +517,14 @@
 }
 .pet-idle { animation: pet-bob 2.8s ease-in-out infinite; }
 
+@keyframes pet-welcome-enter {
+  0% { opacity: 0; transform: translateY(18px) scale(0.94); }
+  58% { opacity: 1; transform: translateY(-4px) scale(1.025); }
+  78% { transform: translateY(1px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pet-welcome-enter { animation: pet-welcome-enter 1.05s cubic-bezier(0.2, 0.75, 0.25, 1) both; }
+
 @keyframes pet-wiggle {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(-7deg); }
@@ -578,6 +586,7 @@
 .pet-bubble {
   animation: bubble-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+.pet-welcome-bubble { animation-delay: 0.62s; }
 
 /* 桌宠脚下土堆 */
 .pet-mound {
@@ -867,8 +876,9 @@
   .pet-orbit-item { transition: opacity 150ms ease; transform: rotate(var(--orbit-angle)) translateY(calc(var(--orbit-radius) * -1)) rotate(calc(var(--orbit-angle) * -1)); }
   .pet-idle, .pet-digging, .pet-read, .pet-reveal, .pet-miss, .pet-dust, .pet-poke,
   .pet-spin, .pet-walk, .pet-look, .pet-sleep, .pet-heart, .pet-chest-pop,
-  .pet-burst, .pet-celebrate, .pet-halo, .pet-banner, .pet-badge-in,
+  .pet-welcome-enter, .pet-burst, .pet-celebrate, .pet-halo, .pet-banner, .pet-badge-in,
   .pet-hover-bounce, .pet-ears-perk { animation: none; }
+  .pet-welcome-bubble { animation: none; opacity: 1; transform: none; }
 }
 
 /* 桌宠 hover 立绘：轻微回弹缩放 */

@@ -14,6 +14,7 @@ export function Composer({
   onStop,
   value,
   onValueChange,
+  onEngage,
   welcome = false,
   onTyping = emitPetTyping,
   paperMode = false,
@@ -28,6 +29,7 @@ export function Composer({
   onStop: () => void;
   value: string;
   onValueChange: (value: string) => void;
+  onEngage?: () => void;
   welcome?: boolean;
   onTyping?: (active: boolean) => void;
   paperMode?: boolean;
@@ -64,6 +66,7 @@ export function Composer({
     if (!t || streaming || disabled) return;
     setLocalValue("");
     onValueChange("");
+    onEngage?.();
     onSend(t);
   }
 
@@ -74,7 +77,10 @@ export function Composer({
           {paperMode && onPaperInput ? <>
             <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(event) => {
               const file = event.target.files?.[0];
-              if (file) onPaperInput(file);
+              if (file) {
+                onEngage?.();
+                onPaperInput(file);
+              }
               event.currentTarget.value = "";
             }} />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={disabled || streaming} title={t("paper.attach")} aria-label={t("paper.attach")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-helix/50 hover:text-helix disabled:opacity-40"><FileUp size={15} /></button>
@@ -83,6 +89,7 @@ export function Composer({
             ref={taRef}
             rows={welcome ? 2 : 1}
             value={localValue}
+            onFocus={onEngage}
             onCompositionStart={() => { composingRef.current = true; }}
             onCompositionEnd={(e) => {
               composingRef.current = false;

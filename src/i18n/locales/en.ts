@@ -116,6 +116,8 @@ export const en = {
   "empty.groupFit": "For: {caption}",
   "empty.badgeIdle": "Resting",
   "pet.dismissBubble": "Dismiss Muse's bubble",
+  "pet.welcome.first": "Hi! I'm Muse 🐹, your research treasure-hunting partner. Let's discover something new today!",
+  "pet.welcome.returning": "Welcome back! Would you like to explore a paper, a dataset, or a new research question today?",
   "empty.sources": "GEO · SRA · ENA · GSA | Traceable sources | Verifiable literature",
   "empty.discover.title": "Data discovery",
   "empty.discover.alias": "Explore",

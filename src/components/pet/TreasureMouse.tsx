@@ -26,7 +26,7 @@ import IMG_READ_MAP from "@/assets/pet/mouse-read-map.webp";
 import IMG_READ_CART from "@/assets/pet/mouse-read-cart.webp";
 import IMG_SPARKLE from "@/assets/pet/mouse-sparkle.webp";
 
-type PetState = "idle" | "digging" | "read" | "litfound" | "reveal" | "stow" | "miss" | "poke" | "spin" | "walk" | "look" | "celebrate" | "peek" | "sleep";
+type PetState = "idle" | "welcome" | "digging" | "read" | "litfound" | "reveal" | "stow" | "miss" | "poke" | "spin" | "walk" | "look" | "celebrate" | "peek" | "sleep";
 
 /** 外部流式事件 → 宠物动作 */
 export type PetEvent =
@@ -85,7 +85,7 @@ interface Burst {
 }
 let burstId = 0;
 
-export function TreasureMouse({ event, welcome = false }: { event: PetEvent | null; welcome?: boolean }): React.ReactElement | null {
+export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { event: PetEvent | null; welcome?: boolean; welcomeSessionKey?: string }): React.ReactElement | null {
   const { t, lang } = useI18n();
   const presentation = usePresentation();
   const fitPos = (value: PetPos, pixels: number) => clampPos(value, pixels, presentation?.viewport?.());
@@ -95,9 +95,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
   const [always, setAlways] = useState<boolean>(() => readPetAlways()); // 一直存在：关掉则闲置自动藏起来
   const [idleAlive, setIdleAlive] = useState<boolean>(() => readPetIdleAlive()); // 闲置时自己活动（冒泡/溜达/入睡）
   const [hidden, setHidden] = useState(false);
-  const [recalled, setRecalled] = useState(false);
   const [bubbleDismissed, setBubbleDismissed] = useState(false);
-  useEffect(() => { setRecalled(false); }, [welcome]);
   const [panelOpen, setPanelOpen] = useState(false); // 悬浮齿轮设置面板
   const size = isMobile ? Math.min(sizePref, MOBILE_SIZE_CAP) : sizePref; // 实际渲染宽度
   const [quiet, setQuiet] = useState<boolean>(() => readPetQuiet());
@@ -109,6 +107,11 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
   const [state, setState] = useState<PetState>("idle");
   const [readImg, setReadImg] = useState<string>(IMG_READ_STUDY); // read 状态当前轮播到的造型图
   const [bubble, setBubble] = useState<string | null>(null);
+  const [welcomeBubble, setWelcomeBubble] = useState(false);
+  const [welcomeMessageKey, setWelcomeMessageKey] = useState<MessageKey | null>(null);
+  const welcomeKeyRef = useRef<string | undefined>(undefined);
+  const welcomeWasActiveRef = useRef(false);
+  const welcomeDecisionsRef = useRef(new Map<string, { played: boolean; dismissed: boolean; completed: boolean; firstVisit: boolean }>());
   const [gemCount, setGemCount] = useState<number | null>(null);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const [treasure, setTreasure] = useState<number>(() => readTreasureCount());
@@ -134,6 +137,79 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
   const idleAliveRef = useRef(idleAlive);
   idleAliveRef.current = idleAlive;
 
+  // A temporary chat keeps its greeting identity in sessionStorage so reloads
+  // can restore the bubble without replaying the entrance or reviving a dismissed one.
+  useEffect(() => {
+    if (!welcomeSessionKey) return;
+    const key = welcomeSessionKey;
+    if (welcome) {
+      if (stateTimer.current) clearTimeout(stateTimer.current);
+      stateTimer.current = null;
+      if (welcomeWasActiveRef.current && welcomeKeyRef.current !== key) {
+        try {
+          sessionStorage.setItem(`seqout-welcome-complete:${welcomeKeyRef.current}`, "1");
+        } catch {
+          /* Ignore unavailable session storage. */
+        }
+      }
+      welcomeWasActiveRef.current = true;
+      welcomeKeyRef.current = key;
+      setBubbleDismissed(false);
+      let decision = welcomeDecisionsRef.current.get(key);
+      if (!decision) {
+        decision = { played: false, dismissed: false, completed: false, firstVisit: false };
+        try {
+          decision.played = sessionStorage.getItem(`seqout-welcome-played:${key}`) === "1";
+          decision.dismissed = sessionStorage.getItem(`seqout-welcome-dismissed:${key}`) === "1";
+          decision.completed = sessionStorage.getItem(`seqout-welcome-complete:${key}`) === "1";
+          decision.firstVisit = localStorage.getItem("seqout-welcome-seen") !== "1";
+          localStorage.setItem("seqout-welcome-seen", "1");
+          sessionStorage.setItem(`seqout-welcome-played:${key}`, "1");
+        } catch {
+          /* The greeting remains available when browser storage is unavailable. */
+        }
+        welcomeDecisionsRef.current.set(key, decision);
+      }
+      if (decision.dismissed || decision.completed) {
+        setState("idle");
+        setWelcomeBubble(false);
+        setWelcomeMessageKey(null);
+        setBubble(null);
+        return;
+      }
+      const messageKey = decision.firstVisit ? "pet.welcome.first" : "pet.welcome.returning";
+      setState(decision.played ? "idle" : "welcome");
+      setWelcomeBubble(true);
+      setWelcomeMessageKey(messageKey);
+      setBubble(t(messageKey));
+      if (decision.played) return;
+      stateTimer.current = setTimeout(() => setState("idle"), 1850);
+      return () => {
+        if (stateTimer.current) clearTimeout(stateTimer.current);
+        stateTimer.current = null;
+      };
+    }
+
+    if (welcomeWasActiveRef.current && welcomeKeyRef.current) {
+      const decision = welcomeDecisionsRef.current.get(welcomeKeyRef.current);
+      if (decision) decision.completed = true;
+      try {
+        sessionStorage.setItem(`seqout-welcome-complete:${welcomeKeyRef.current}`, "1");
+      } catch {
+        /* Ignore unavailable session storage. */
+      }
+    }
+    welcomeWasActiveRef.current = false;
+    setState((current) => current === "welcome" ? "idle" : current);
+    setWelcomeBubble(false);
+    setWelcomeMessageKey(null);
+    setBubble((current) => current === t("pet.welcome.first") || current === t("pet.welcome.returning") ? null : current);
+  }, [welcome, welcomeSessionKey]);
+
+  useEffect(() => {
+    if (welcome && welcomeBubble && welcomeMessageKey) setBubble(t(welcomeMessageKey));
+  }, [lang, t, welcome, welcomeBubble, welcomeMessageKey]);
+
   // 页面层设置入口（顶栏按钮 / 共享面板）⇆ 桌宠：改设置即时生效、找回退出静默与隐藏
   useEffect(() => {
     const offSettings = onPetSettingsChanged(() => {
@@ -144,7 +220,6 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
       if (readPetAlways()) setHidden(false);
     });
     const offRecall = onPetRecall(() => {
-      setRecalled(true);
       setBubbleDismissed(false);
       lastAct.current = Date.now();
       if (stateTimer.current) clearTimeout(stateTimer.current);
@@ -213,8 +288,9 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
 
   /** 手动点气泡：立刻换一句（从语录库顺序取下一句，不重复当前句） */
   function cycleBubble(): void {
-    if (state !== "idle") return; // 剧情台词不打扰
+    if (state !== "idle" && state !== "welcome") return; // 剧情台词不打扰
     lastAct.current = Date.now();
+    setWelcomeBubble(false);
     idleLineIdx.current = (idleLineIdx.current + 1) % L.idle.length;
     setBubble(L.idle[idleLineIdx.current]);
     if (stateTimer.current) clearTimeout(stateTimer.current);
@@ -227,6 +303,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
   /** 临时状态：ms 后回 idle */
   const transient = useCallback((s: PetState, line: string | null, ms: number, onEnd?: () => void) => {
     if (stateTimer.current) clearTimeout(stateTimer.current);
+    setWelcomeBubble(false);
     setState(s);
     setBubble(line);
     stateTimer.current = setTimeout(() => {
@@ -447,6 +524,9 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
 
   function handlePoke(): void {
     lastAct.current = Date.now();
+    if (welcome && welcomeSessionKey) {
+      try { sessionStorage.setItem(`seqout-welcome-complete:${welcomeSessionKey}`, "1"); } catch { /* Ignore unavailable session storage. */ }
+    }
     const now = Date.now();
     pokeStreak.current = now - pokeStreak.current.at < 1500 ? { n: pokeStreak.current.n + 1, at: now } : { n: 1, at: now };
     const n = bumpPokeCount();
@@ -529,7 +609,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
     else handlePoke();
   };
 
-  if (hidden || (welcome && !recalled)) return null;
+  if (hidden) return null;
 
   if (quiet) {
     return (
@@ -546,7 +626,8 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
   }
 
   const animCls =
-    state === "digging" ? "pet-digging"
+    state === "welcome" ? "pet-welcome-enter"
+      : state === "digging" ? "pet-digging"
       : state === "read" ? "pet-read"
         : state === "reveal" || state === "stow" || state === "litfound" ? "pet-reveal"
           : state === "miss" ? "pet-miss"
@@ -573,7 +654,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
 
   return (
     <div
-      role="img"
+      role="group"
       aria-label={t("pet.alt")}
       className="group fixed z-30 select-none touch-none"
       style={{ left: pos.x, bottom: pos.y, width: size, ["--pet-size" as string]: `${size}px` }}
@@ -595,7 +676,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
       ) : null}
       {/* 气泡（点击手动切换语录） */}
       {bubble && !bubbleDismissed ? (
-        <div className="pet-bubble absolute -top-2 left-1/2 flex w-[200px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full items-start gap-1 rounded-lg border border-border bg-card p-2 text-[11.5px] text-foreground shadow-soft">
+        <div aria-live="polite" className={`pet-bubble absolute -top-2 left-1/2 flex w-[230px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full items-start gap-1 rounded-lg border border-border bg-card p-2 text-[11.5px] text-foreground shadow-soft ${welcomeBubble ? "pet-welcome-bubble" : ""}`}>
         <button
           type="button"
           onClick={cycleBubble}
@@ -604,7 +685,15 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
           {bubble}
           <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-border bg-card" />
         </button>
-        <button type="button" onClick={() => setBubbleDismissed(true)} aria-label={t("pet.dismissBubble")} title={t("pet.dismissBubble")} className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"><X size={12} /></button>
+        <button type="button" onClick={() => {
+          setBubbleDismissed(true);
+          setWelcomeBubble(false);
+          if (welcomeSessionKey && welcome) {
+            const decision = welcomeDecisionsRef.current.get(welcomeSessionKey);
+            if (decision) decision.dismissed = true;
+            try { sessionStorage.setItem(`seqout-welcome-dismissed:${welcomeSessionKey}`, "1"); } catch { /* Ignore unavailable session storage. */ }
+          }
+        }} aria-label={t("pet.dismissBubble")} title={t("pet.dismissBubble")} className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"><X size={12} /></button>
         </div>
       ) : null}
 

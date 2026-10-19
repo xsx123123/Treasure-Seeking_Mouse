@@ -49,6 +49,7 @@ export const Route = createFileRoute("/")({
 
 const FALLBACK_MODEL = "qwen3.8-flash";
 const LOCAL_SESSION_KEY = "seqout-local-session";
+const TEMP_SESSION_ID_KEY = "seqout-temp-session-id";
 const RAIL_COLLAPSED_KEY = "seqout-sidebar-collapsed"; // '1' = 收起（默认），'0' = 展开
 const GUEST_MAX_SESSIONS = 50; // 游客（未登录）最多保留的会话条数
 const GUEST_KEEP_DAYS = 7; // 游客会话最后活跃后保留天数
@@ -62,6 +63,18 @@ interface LocalSession {
 
 function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function initialTempSessionId(): string {
+  try {
+    const existing = sessionStorage.getItem(TEMP_SESSION_ID_KEY);
+    if (existing) return existing;
+    const id = uid();
+    sessionStorage.setItem(TEMP_SESSION_ID_KEY, id);
+    return id;
+  } catch {
+    return uid();
+  }
 }
 
 function readLocalSessions(): LocalSession[] {
@@ -96,7 +109,8 @@ function ChatPage(): React.ReactElement {
   const [authOpen, setAuthOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null); // null = 本地临时会话
-  const [localId, setLocalId] = useState<string>(() => uid());
+  const [localId, setLocalId] = useState<string>(initialTempSessionId);
+  const [welcomeSuppressed, setWelcomeSuppressed] = useState(false);
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [composerDraft, setComposerDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -331,16 +345,24 @@ function ChatPage(): React.ReactElement {
     if (streaming) return;
     setComposerDraft("");
     setMessages([]);
-    if (user) setActiveId(null); // 首条消息发送时再建云端会话
-    else setLocalId(uid());
+    setActiveId(null); // 首条消息发送时再建会话
+    const id = uid();
+    setLocalId(id);
+    try {
+      sessionStorage.setItem(TEMP_SESSION_ID_KEY, id);
+    } catch {
+      /* session identity remains valid for this render */
+    }
+    setWelcomeSuppressed(false);
     setDrawerOpen(false);
-  }, [streaming, user]);
+  }, [streaming]);
 
   const selectSession = useCallback(
     (id: string) => {
       if (streaming) return;
       setComposerDraft("");
       setActiveId(id);
+      setWelcomeSuppressed(true);
       setDrawerOpen(false);
     },
     [streaming],
@@ -583,6 +605,7 @@ function ChatPage(): React.ReactElement {
       value={composerDraft}
       onValueChange={setComposerDraft}
       welcome={messages.length === 0}
+      onEngage={() => setWelcomeSuppressed(true)}
       onSend={(text) => void handleSend(text)}
       onStop={() => abortRef.current?.abort()}
     />
@@ -675,6 +698,14 @@ function ChatPage(): React.ReactElement {
           </button>
           <Link
             to="/about"
+            onClick={() => {
+              setWelcomeSuppressed(true);
+              try {
+                sessionStorage.setItem(`seqout-welcome-complete:${activeId ?? localId}`, "1");
+              } catch {
+                /* Ignore unavailable session storage. */
+              }
+            }}
             title={t("header.about")}
             aria-label={t("header.aboutAria")}
             className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-pet-amber-deep"
@@ -757,7 +788,11 @@ function ChatPage(): React.ReactElement {
       />
 
       {/* 寻宝鼠桌宠 */}
-      <TreasureMouse event={petEvent} welcome={messages.length === 0} />
+      <TreasureMouse
+        event={petEvent}
+        welcome={activeId === null && messages.length === 0 && !welcomeSuppressed}
+        welcomeSessionKey={activeId ?? localId}
+      />
 
       {/* 挖宝排行榜：离线本地账号的 id 即邮箱，行键 u:<email> 可直接高亮"我" */}
       <Leaderboard open={boardOpen} onClose={() => setBoardOpen(false)} ownUserId={effUser?.id ?? null} />
