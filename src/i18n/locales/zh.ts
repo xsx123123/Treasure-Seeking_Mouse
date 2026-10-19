@@ -156,7 +156,7 @@ export const zh = {
   "composer.send": "下铲挖宝",
   "composer.sendAria": "下铲挖宝",
   "composer.disclaimer":
-    "检索自公共组学与文献库，以原始条目为准",
+    "数据来自公共组学与文献库，请以 NCBI / NGDC 原始记录为准",
 
   // ---- 消息 ----
   "msg.thinking": "正在思考…",

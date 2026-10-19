@@ -158,7 +158,7 @@ export const en = {
   "composer.send": "Dig for treasure",
   "composer.sendAria": "Dig for treasure",
   "composer.disclaimer":
-    "Retrieved from public omics & literature databases; verify via NCBI / NGDC.",
+    "Data comes from public omics & literature databases; verify against the original NCBI / NGDC records.",
 
   // ---- 消息 ----
   "msg.thinking": "Thinking…",
