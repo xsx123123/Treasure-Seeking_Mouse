@@ -143,6 +143,28 @@ Browser
 
 The backend keeps provider credentials private, normalizes provider-specific responses into one paper schema, and sends cards separately from the model context. The frontend renders the stream, cards, evidence links and pet events.
 
+Repository layout (after the 2026-10-18 cleanup, 21 root entries):
+
+```text
+├── src/                     # React SPA (routes / components / services / i18n / pet assets)
+│   ├── presentation-contract.ts   # shared presentation contract types (migrated from island)
+│   └── supabase/            # platform-generated client, hands off
+├── functions/seqout-chat/   # Edge Function: tool schemas, adapters, SSE orchestration
+│   ├── biomed/              # MyGene / MyVariant / ClinVar adapters
+│   ├── prompts/             # editable zh/en system prompts (run npm run sync:prompts)
+│   └── tests/               # offline regression suites + fixtures
+├── server/                  # self-hosted Node service (chat + accounts + stats)
+├── scripts/                 # paper_evidence.py and its tests
+├── deploy/                  # Dockerfile (dual target) + compose + nginx
+├── docs/                    # bilingual READMEs, ARC notes, white paper, badges
+├── public/                  # static favicon
+├── archive/                 # frozen historical projects (qmuse/weixin/crawler/island, see archive/README.md)
+├── index.html               # SPA shell with anti-flash theme bootstrap
+├── vite.config.ts / tsconfig.json / components.json
+├── package.json / pnpm-lock.yaml / skills-lock.json
+└── Makefile / README.md / AGENTS.md / LICENSE / .gitignore / .dockerignore
+```
+
 Important locations:
 
 | Path | Responsibility |

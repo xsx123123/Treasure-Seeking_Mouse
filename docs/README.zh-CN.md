@@ -87,6 +87,28 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 
 ## 目录
 
+仓库结构（2026-10-18 目录整理后，根目录 21 项）：
+
+```text
+├── src/                     # React 单页应用（路由 / 组件 / 服务 / i18n / 桌宠素材）
+│   ├── presentation-contract.ts   # 共享展示契约类型（island 归档前迁出）
+│   └── supabase/            # 平台生成客户端，禁手改
+├── functions/seqout-chat/   # Edge Function：工具 schema、适配器、SSE 编排
+│   ├── biomed/              # MyGene / MyVariant / ClinVar 适配器
+│   ├── prompts/             # 可编辑中英系统提示词（改后跑 npm run sync:prompts）
+│   └── tests/               # 离线回归测试 + fixtures
+├── server/                  # 自托管 Node 服务（对话 + 账号 + 统计）
+├── scripts/                 # paper_evidence.py 及其测试
+├── deploy/                  # Docker 部署（Dockerfile 双 target + compose + nginx）
+├── docs/                    # 双语 README、ARC 架构笔记、白皮书、徽章
+├── public/                  # 静态 favicon
+├── archive/                 # 历史归档（qmuse/weixin/crawler/island，见 archive/README.md）
+├── index.html               # SPA 壳（内联防闪白主题 bootstrap）
+├── vite.config.ts / tsconfig.json / components.json
+├── package.json / pnpm-lock.yaml / skills-lock.json
+└── Makefile / README.md / AGENTS.md / LICENSE / .gitignore / .dockerignore
+```
+
 | 位置 | 内容 |
 |------|------|
 | `docs/DETAILED_README.md` | **详细开发文档**：目录结构、核心架构与数据流、平台部署（Meoo）、手动部署、systemd、踩坑清单 |
