@@ -129,25 +129,25 @@ export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostM
   );
   return (
     <div
-      className={`hover-lift card-in relative overflow-hidden rounded-lg border bg-card p-2.5 pl-3.5 shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-gradient-to-b before:from-pet-amber/70 before:to-helix/50 ${litClicked ? "border-helix/60 ring-2 ring-helix/20" : "border-border"}`}
+      className={`hover-lift card-in relative overflow-hidden rounded-lg border bg-card p-2.5 pl-3.5 shadow-soft before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-gradient-to-b before:from-pet-amber/70 before:to-helix/50 ${litClicked ? "border-helix/60 ring-2 ring-helix/20" : "border-border"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           {prefix ? (
-            <span className={`shrink-0 rounded px-1 py-px font-mono text-[11px] font-semibold leading-none tracking-wider ring-1 ${PREFIX_COLORS[prefix] ?? "bg-muted text-muted-foreground ring-border"}`}>
+            <span className={`shrink-0 rounded px-1 py-px font-mono text-xs font-semibold leading-none tracking-wider ring-1 ${PREFIX_COLORS[prefix] ?? "bg-muted text-muted-foreground ring-border"}`}>
               {prefix}
             </span>
           ) : null}
-          {gsaPublic ? <span className="shrink-0 rounded bg-helix-soft px-1 py-px text-[11px] font-medium text-helix ring-1 ring-helix/20">{t("card.gsaMirror")}</span> : null}
-          {controlled ? <a href={DAC_URL} target="_blank" rel="noreferrer noopener" className="shrink-0 rounded bg-pet-amber/15 px-1 py-px text-[11px] font-medium text-pet-amber ring-1 ring-pet-amber/30">{t("card.controlled")}</a> : null}
+          {gsaPublic ? <span className="shrink-0 rounded bg-helix-soft px-1 py-px text-xs font-medium text-helix ring-1 ring-helix/20">{t("card.gsaMirror")}</span> : null}
+          {controlled ? <a href={DAC_URL} target="_blank" rel="noreferrer noopener" className="shrink-0 rounded bg-pet-amber/15 px-1 py-px text-xs font-medium text-pet-amber ring-1 ring-pet-amber/30">{t("card.controlled")}</a> : null}
           {!card.accession.trim() ? (
-            <span className="shrink-0 rounded bg-secondary px-1 py-px text-[11px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+            <span className="shrink-0 rounded bg-secondary px-1 py-px text-xs font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
           ) : null}
           <a
             href={link ?? undefined}
             target="_blank"
             rel="noreferrer noopener"
-            className={`font-mono text-[12px] font-semibold tracking-wide text-helix ${link ? "story-link" : "pointer-events-none"}`}
+            className={`font-mono text-cap font-semibold tracking-wide text-helix ${link ? "story-link" : "pointer-events-none"}`}
           >
             {card.accession.toUpperCase()}
           </a>
@@ -177,23 +177,23 @@ export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostM
           </div>
         ) : null}
       </div>
-      <p className="mt-1 line-clamp-1 text-[12.5px] leading-snug text-foreground">{card.title}</p>
+      <p className="mt-1 line-clamp-1 text-cap leading-snug text-foreground">{card.title}</p>
       {card.meta?.organism ? (
-        <p className="mt-1 truncate text-[11px] italic text-strand">{card.meta.organism}</p>
+        <p className="mt-1 truncate text-xs italic text-strand">{card.meta.organism}</p>
       ) : null}
       {metaEntries.length > 0 ? (
         <div className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
           {metaEntries.slice(0, 3).map(([k, v]) => (
-            <span key={k} className="text-[10.5px] text-muted-foreground">
+            <span key={k} className="text-xs text-muted-foreground">
               <span className="text-muted-foreground/70">{k}: </span>
               {String(v).length > 28 ? `${String(v).slice(0, 28)}…` : v}
             </span>
           ))}
         </div>
       ) : null}
-      {presentation?.onResearchAction && /^(GSE|GSM|SRR|ERR|DRR|SRX|SRP|PRJNA|PRJEB|PRJDB)\d+$/i.test(card.accession) ? <button type="button" disabled={!presentation.workflow?.allowedTools?.includes('dataset.discover')} className="mt-2 rounded-md border border-helix/25 bg-helix-soft px-2 py-1 text-[11px] text-helix disabled:opacity-40" onClick={() => presentation.onResearchAction?.({ type: 'dataset.inspect', discoveryRef: card.accession })}>{t('workflow.inspect')}</button> : null}
+      {presentation?.onResearchAction && /^(GSE|GSM|SRR|ERR|DRR|SRX|SRP|PRJNA|PRJEB|PRJDB)\d+$/i.test(card.accession) ? <button type="button" disabled={!presentation.workflow?.allowedTools?.includes('dataset.discover')} className="mt-2 rounded-md border border-helix/25 bg-helix-soft px-2 py-1 text-xs text-helix disabled:opacity-40" onClick={() => presentation.onResearchAction?.({ type: 'dataset.inspect', discoveryRef: card.accession })}>{t('workflow.inspect')}</button> : null}
       {mirrorUrl && gsaPublic ? (
-        <a href={mirrorUrl} target="_blank" rel="noreferrer noopener" className="mt-1.5 inline-flex text-[10.5px] text-helix story-link">{t("card.openGsaMirror")}</a>
+        <a href={mirrorUrl} target="_blank" rel="noreferrer noopener" className="mt-1.5 inline-flex text-xs text-helix story-link">{t("card.openGsaMirror")}</a>
       ) : null}
     </div>
   );
@@ -206,20 +206,20 @@ function LiteratureResultCard({ card }: { card: CardData }): React.ReactElement 
   const abstract = card.summary?.trim();
   const link = (key: string): string | undefined => meta[`url_${key}`] || undefined;
   return (
-    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-helix/25 bg-card p-3 shadow-sm">
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-helix/25 bg-card p-3 shadow-soft">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-xs font-semibold uppercase text-helix ring-1 ring-helix/20">
               {litSourceLabel(meta.literature_source)}
             </span>
-            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[11px] text-helix">OA</span> : null}
+            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-xs text-helix">OA</span> : null}
             {!meta.pmid && !meta.doi ? (
-              <span className="shrink-0 rounded bg-secondary px-1.5 py-px text-[11px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+              <span className="shrink-0 rounded bg-secondary px-1.5 py-px text-xs font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
             ) : null}
-            <span className="font-mono text-[10px] text-muted-foreground">{meta.pmid ? `PMID: ${meta.pmid}` : card.accession}</span>
+            <span className="font-mono text-xs text-muted-foreground">{meta.pmid ? `PMID: ${meta.pmid}` : card.accession}</span>
           </div>
-          <h3 className="line-clamp-3 text-[13px] font-semibold leading-snug text-foreground">{card.title}</h3>
+          <h3 className="line-clamp-3 text-cap font-semibold leading-snug text-foreground">{card.title}</h3>
         </div>
         {link("pubmed") ? (
           <a href={link("pubmed")} target="_blank" rel="noreferrer noopener" className="shrink-0 text-muted-foreground hover:text-helix" title={t("lit.openPubmed")} aria-label={t("lit.openPubmed")}>
@@ -227,16 +227,16 @@ function LiteratureResultCard({ card }: { card: CardData }): React.ReactElement 
           </a>
         ) : null}
       </div>
-      <p className="mt-1 text-[10.5px] text-muted-foreground">
+      <p className="mt-1 text-xs text-muted-foreground">
         {[authors, meta.journal, meta.year].filter(Boolean).join(" · ")}
       </p>
-      {abstract ? <p className="mt-2 line-clamp-4 text-[11.5px] leading-relaxed text-foreground/80">{abstract}</p> : null}
+      {abstract ? <p className="mt-2 line-clamp-4 text-xs leading-relaxed text-foreground/80">{abstract}</p> : null}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
-        {link("pubmed") ? <a href={link("pubmed")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix"><ExternalLink size={10} />{t("lit.pubmed")}</a> : null}
-        {link("europe_pmc") ? <a href={link("europe_pmc")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix"><ExternalLink size={10} />Europe PMC</a> : null}
-        {link("doi") ? <a href={link("doi")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix"><ExternalLink size={10} />{t("lit.doi")}</a> : null}
-        {link("full_text") ? <a href={link("full_text")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix"><FileText size={10} />{t("lit.fullText")}</a> : null}
-        {link("google_scholar_search") ? <a href={link("google_scholar_search")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-muted-foreground"><ExternalLink size={10} />{t("lit.googleScholar")}</a> : null}
+        {link("pubmed") ? <a href={link("pubmed")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix"><ExternalLink size={10} />{t("lit.pubmed")}</a> : null}
+        {link("europe_pmc") ? <a href={link("europe_pmc")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix"><ExternalLink size={10} />Europe PMC</a> : null}
+        {link("doi") ? <a href={link("doi")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix"><ExternalLink size={10} />{t("lit.doi")}</a> : null}
+        {link("full_text") ? <a href={link("full_text")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix"><FileText size={10} />{t("lit.fullText")}</a> : null}
+        {link("google_scholar_search") ? <a href={link("google_scholar_search")} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-muted-foreground"><ExternalLink size={10} />{t("lit.googleScholar")}</a> : null}
       </div>
     </article>
   );
@@ -249,28 +249,28 @@ function GeneResultCard({ card }: { card: CardData }): React.ReactElement {
   const entrezLink = meta.entrez_gene_id ? `https://www.ncbi.nlm.nih.gov/gene/${meta.entrez_gene_id}` : undefined;
   const ensemblLink = meta.ensembl_gene_id ? `https://www.ensembl.org/Multi/Search/Results?q=${meta.ensembl_gene_id}` : undefined;
   return (
-    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-helix/25 bg-card p-3 shadow-sm">
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-helix/25 bg-card p-3 shadow-soft">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+        <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-xs font-semibold uppercase text-helix ring-1 ring-helix/20">
           {t("card.gene")}
         </span>
-        {meta.entrez_gene_id ? <span className="font-mono text-[10px] text-muted-foreground">Entrez: {meta.entrez_gene_id}</span> : null}
-        {meta.ensembl_gene_id ? <span className="font-mono text-[10px] text-muted-foreground">{meta.ensembl_gene_id}</span> : null}
+        {meta.entrez_gene_id ? <span className="font-mono text-xs text-muted-foreground">Entrez: {meta.entrez_gene_id}</span> : null}
+        {meta.ensembl_gene_id ? <span className="font-mono text-xs text-muted-foreground">{meta.ensembl_gene_id}</span> : null}
       </div>
-      <h3 className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">{card.title}</h3>
-      <p className="mt-1 text-[10.5px] text-muted-foreground">
+      <h3 className="line-clamp-2 text-cap font-semibold leading-snug text-foreground">{card.title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
         {[meta.species, meta.taxid ? `taxid: ${meta.taxid}` : undefined, meta.uniprot_id ? `UniProt: ${meta.uniprot_id}` : undefined].filter(Boolean).join(" · ")}
       </p>
-      {card.summary?.trim() ? <p className="mt-2 line-clamp-3 text-[11.5px] leading-relaxed text-foreground/80">{card.summary.trim()}</p> : null}
+      {card.summary?.trim() ? <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-foreground/80">{card.summary.trim()}</p> : null}
       {entrezLink || ensemblLink ? (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
           {entrezLink ? (
-            <a href={entrezLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+            <a href={entrezLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix">
               <ExternalLink size={10} />{t("card.openGene")}
             </a>
           ) : null}
           {ensemblLink ? (
-            <a href={ensemblLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+            <a href={ensemblLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix">
               <ExternalLink size={10} />Ensembl
             </a>
           ) : null}
@@ -290,23 +290,23 @@ function VariantResultCard({ card }: { card: CardData }): React.ReactElement {
   else if (meta.chr) locParts.push(`chr${meta.chr}`);
   if (meta.ref && meta.alt) locParts.push(`${meta.ref}>${meta.alt}`);
   return (
-    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-strand/25 bg-card p-3 shadow-sm">
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-strand/25 bg-card p-3 shadow-soft">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        <span className="shrink-0 rounded bg-strand/10 px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-strand ring-1 ring-strand/20">
+        <span className="shrink-0 rounded bg-strand/10 px-1.5 py-px font-mono text-xs font-semibold uppercase text-strand ring-1 ring-strand/20">
           {t("card.variant")}
         </span>
-        <span className="shrink-0 rounded bg-secondary px-1.5 py-px font-mono text-[11px] font-semibold text-muted-foreground ring-1 ring-border">
+        <span className="shrink-0 rounded bg-secondary px-1.5 py-px font-mono text-xs font-semibold text-muted-foreground ring-1 ring-border">
           {t("card.assembly")}: {meta.assembly || "N/A"}
         </span>
       </div>
-      <h3 className="line-clamp-2 font-mono text-[12px] font-semibold leading-snug text-foreground">{card.title}</h3>
-      <p className="mt-1 text-[10.5px] text-muted-foreground">
+      <h3 className="line-clamp-2 font-mono text-cap font-semibold leading-snug text-foreground">{card.title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
         {[meta.gene, locParts.join(" "), meta.cytoband].filter(Boolean).join(" · ")}
       </p>
-      {card.summary?.trim() ? <p className="mt-2 line-clamp-3 text-[11.5px] leading-relaxed text-foreground/80">{card.summary.trim()}</p> : null}
+      {card.summary?.trim() ? <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-foreground/80">{card.summary.trim()}</p> : null}
       {snpLink ? (
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
-          <a href={snpLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+          <a href={snpLink} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix">
             <ExternalLink size={10} />{t("card.openVariant")}
           </a>
         </div>
@@ -326,43 +326,43 @@ function ClinVarResultCard({ card }: { card: CardData }): React.ReactElement {
   ];
   const shown = rows.filter(([, v]) => v);
   return (
-    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-pet-amber/25 bg-card p-3 shadow-sm">
+    <article className="hover-lift card-in relative overflow-hidden rounded-lg border border-pet-amber/25 bg-card p-3 shadow-soft">
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-pet-amber ring-1 ring-pet-amber/30">
+        <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px font-mono text-xs font-semibold uppercase text-pet-amber ring-1 ring-pet-amber/30">
           {t("card.clinvar")}
         </span>
         {meta.submitter_conflict === "true" ? (
-          <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px text-[11px] font-medium text-pet-amber ring-1 ring-pet-amber/30">
+          <span className="shrink-0 rounded bg-pet-amber/15 px-1.5 py-px text-xs font-medium text-pet-amber ring-1 ring-pet-amber/30">
             {t("card.submitterConflict")}
           </span>
         ) : null}
-        <span className="font-mono text-[10px] text-muted-foreground">{card.accession}</span>
-        {meta.scv_count ? <span className="text-[10px] text-muted-foreground">{t("card.scvAssertions", { n: meta.scv_count })}</span> : null}
+        <span className="font-mono text-xs text-muted-foreground">{card.accession}</span>
+        {meta.scv_count ? <span className="text-xs text-muted-foreground">{t("card.scvAssertions", { n: meta.scv_count })}</span> : null}
       </div>
-      <h3 className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">{card.title}</h3>
-      <p className="mt-1 text-[10.5px] text-muted-foreground">
+      <h3 className="line-clamp-2 text-cap font-semibold leading-snug text-foreground">{card.title}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
         {[meta.gene, meta.condition].filter(Boolean).join(" · ")}
       </p>
       {shown.length > 0 || meta.review_status ? (
         <dl className="mt-2 space-y-0.5">
           {shown.map(([label, v]) => (
-            <div key={label} className="flex items-baseline gap-1.5 text-[11px]">
+            <div key={label} className="flex items-baseline gap-1.5 text-xs">
               <dt className="shrink-0 text-muted-foreground/80">{label}:</dt>
               <dd className="min-w-0 truncate text-foreground">{v}</dd>
             </div>
           ))}
           {meta.review_status ? (
-            <div className="flex items-baseline gap-1.5 text-[11px]">
+            <div className="flex items-baseline gap-1.5 text-xs">
               <dt className="shrink-0 text-muted-foreground/80">{t("card.reviewStatus")}:</dt>
               <dd className="min-w-0 truncate text-foreground/80">{meta.review_status}</dd>
             </div>
           ) : null}
         </dl>
       ) : null}
-      <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground/70">{t("card.clinvarDisclaimer")}</p>
+      <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground/70">{t("card.clinvarDisclaimer")}</p>
       {meta.url ? (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-2">
-          <a href={meta.url} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-[10.5px] text-helix">
+          <a href={meta.url} target="_blank" rel="noreferrer noopener" className="story-link inline-flex items-center gap-1 text-xs text-helix">
             <ExternalLink size={10} />{t("card.openClinvar")}
           </a>
         </div>
@@ -393,28 +393,28 @@ export function LiteratureDetailDialog({ card, onClose }: { card: CardData; onCl
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-[11px] font-semibold uppercase text-helix ring-1 ring-helix/20">
+            <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px font-mono text-xs font-semibold uppercase text-helix ring-1 ring-helix/20">
               {litSourceLabel(meta.literature_source)}
             </span>
-            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-[11px] text-helix">OA</span> : null}
-            {meta.pmid ? <span className="font-mono text-[10px] text-muted-foreground">PMID: {meta.pmid}</span> : null}
-            {meta.doi ? <span className="font-mono text-[10px] text-muted-foreground">DOI: {meta.doi}</span> : null}
+            {meta.isOpenAccess === "true" ? <span className="shrink-0 rounded bg-helix-soft px-1.5 py-px text-xs text-helix">OA</span> : null}
+            {meta.pmid ? <span className="font-mono text-xs text-muted-foreground">PMID: {meta.pmid}</span> : null}
+            {meta.doi ? <span className="font-mono text-xs text-muted-foreground">DOI: {meta.doi}</span> : null}
           </div>
-          <DialogTitle className="text-[15px] leading-snug">{card.title}</DialogTitle>
+          <DialogTitle className="text-sm leading-snug">{card.title}</DialogTitle>
         </DialogHeader>
-        <p className="text-[11.5px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {[meta.authors, meta.journal, meta.year].filter(Boolean).join(" · ")}
         </p>
         {card.summary?.trim() ? (
           <section>
-            <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">{t("lit.abstract")}</h4>
-            <p className="max-h-56 overflow-y-auto rounded-md border border-border/60 bg-secondary/40 px-3 py-2 text-[12.5px] leading-relaxed text-foreground/85">
+            <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">{t("lit.abstract")}</h4>
+            <p className="max-h-56 overflow-y-auto rounded-md border border-border/60 bg-secondary/40 px-3 py-2 text-cap leading-relaxed text-foreground/85">
               {card.summary.trim()}
             </p>
           </section>
         ) : null}
         <section>
-          <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">{t("lit.links")}</h4>
+          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">{t("lit.links")}</h4>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             {LINK_KEYS.map((key) =>
               link(key) ? (
@@ -423,7 +423,7 @@ export function LiteratureDetailDialog({ card, onClose }: { card: CardData; onCl
                   href={link(key)}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="story-link inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] text-helix shadow-sm transition-colors hover:border-helix/40"
+                  className="story-link inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-xs text-helix shadow-soft transition-colors hover:border-helix/40"
                 >
                   <ExternalLink size={10} />
                   {key === "doi" ? t("lit.doi") : key === "full_text" ? t("lit.fullText") : key === "google_scholar_search" ? t("lit.googleScholar") : litSourceLabel(key)}

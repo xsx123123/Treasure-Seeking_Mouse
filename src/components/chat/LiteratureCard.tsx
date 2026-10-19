@@ -42,11 +42,11 @@ export function LiteratureCardPanel({
   }, []);
 
   return (
-    <div ref={rootRef} className="card-in relative mt-3 overflow-hidden rounded-lg border border-helix/40 bg-card shadow-sm ring-2 ring-helix/10">
+    <div ref={rootRef} className="card-in relative mt-3 overflow-hidden rounded-lg border border-helix/40 bg-card shadow-soft ring-2 ring-helix/10">
       <div className="flex items-center gap-2 border-b border-border/60 bg-pet-gold-soft/40 px-3.5 py-2">
         <BookOpen size={13} className="shrink-0 text-pet-amber-deep" />
-        <span className="font-display text-[12px] font-semibold tracking-wide text-foreground/80">{t("lit.title")}</span>
-        <span className="truncate font-mono text-[11px] text-muted-foreground">{id}</span>
+        <span className="font-display text-cap font-semibold tracking-wide text-foreground/80">{t("lit.title")}</span>
+        <span className="truncate font-mono text-xs text-muted-foreground">{id}</span>
         {onClose ? (
           <button
             type="button"
@@ -59,28 +59,28 @@ export function LiteratureCardPanel({
         ) : null}
       </div>
 
-      {state === "error" ? <p role="alert" className="px-3.5 py-3 text-[12px] text-muted-foreground">{lang === "zh" ? "文献服务暂不可用，请稍后重试。" : "Literature service unavailable. Please try again later."}</p> : state === "loading" ? (
+      {state === "error" ? <p role="alert" className="px-3.5 py-3 text-cap text-muted-foreground">{lang === "zh" ? "文献服务暂不可用，请稍后重试。" : "Literature service unavailable. Please try again later."}</p> : state === "loading" ? (
         <div className="space-y-2 px-3.5 py-3">
           <div className="h-3.5 w-3/4 animate-pulse rounded bg-secondary" />
           <div className="h-3 w-full animate-pulse rounded bg-secondary" />
           <div className="h-3 w-5/6 animate-pulse rounded bg-secondary" />
-          <p className="pt-1 text-[11px] text-muted-foreground">{t("lit.loading")}</p>
+          <p className="pt-1 text-xs text-muted-foreground">{t("lit.loading")}</p>
         </div>
       ) : card?.status === "ok" ? (
         <div className="px-3.5 py-3">
-          <p className="text-[13px] font-semibold leading-snug text-foreground">{card.title}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-cap font-semibold leading-snug text-foreground">{card.title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             {[card.journal, card.year, card.pmid ? `PMID: ${card.pmid}` : null].filter(Boolean).join(" · ")}
           </p>
           {!card.pmid && !card.doi ? (
-            <span className="mt-1.5 inline-flex rounded bg-secondary px-1.5 py-px text-[11px] font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
+            <span className="mt-1.5 inline-flex rounded bg-secondary px-1.5 py-px text-xs font-medium text-muted-foreground ring-1 ring-border">{t("card.noIdentifier")}</span>
           ) : null}
           {card.outline && card.outline.length > 0 ? (
             <div className="mt-2.5 space-y-2">
               {card.outline.slice(0, 8).map((s, i) => (
                 <div key={i}>
-                  <p className="font-display text-[11px] font-semibold tracking-wide text-helix">{s.section}</p>
-                  <p className="mt-0.5 line-clamp-4 text-[12px] leading-relaxed text-foreground/85">{s.text}</p>
+                  <p className="font-display text-xs font-semibold tracking-wide text-helix">{s.section}</p>
+                  <p className="mt-0.5 line-clamp-4 text-cap leading-relaxed text-foreground/85">{s.text}</p>
                 </div>
               ))}
             </div>
@@ -92,7 +92,7 @@ export function LiteratureCardPanel({
                   href={card.urls.pubmed}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="flex items-center gap-1 text-[11.5px] text-helix story-link"
+                  className="flex items-center gap-1 text-xs text-helix story-link"
                 >
                   <ExternalLink size={11} /> PubMed
                 </a>
@@ -102,7 +102,7 @@ export function LiteratureCardPanel({
                   href={card.urls.doi}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="flex items-center gap-1 text-[11.5px] text-helix story-link"
+                  className="flex items-center gap-1 text-xs text-helix story-link"
                 >
                   <ExternalLink size={11} /> {t("lit.doi")}
                 </a>
@@ -112,7 +112,7 @@ export function LiteratureCardPanel({
                   href={card.urls.full_text}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="flex items-center gap-1 text-[11.5px] text-helix story-link"
+                  className="flex items-center gap-1 text-xs text-helix story-link"
                 >
                   <FileText size={11} /> {t("lit.fullText")}
                 </a>
@@ -122,17 +122,17 @@ export function LiteratureCardPanel({
         </div>
       ) : (
         <div className="px-3.5 py-3">
-          <p className="text-[12.5px] text-muted-foreground">{t("lit.notFound")}</p>
+          <p className="text-cap text-muted-foreground">{t("lit.notFound")}</p>
           {card?.suggested_queries && card.suggested_queries.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {card.suggested_queries.slice(0, 3).map((q, i) => (
-                <span key={i} className="rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-[10.5px] text-muted-foreground">
+                <span key={i} className="rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-xs text-muted-foreground">
                   {q}
                 </span>
               ))}
             </div>
           ) : null}
-          <p className="mt-2 text-[11px] text-muted-foreground/70">{t("lit.notFoundHint")}</p>
+          <p className="mt-2 text-xs text-muted-foreground/70">{t("lit.notFoundHint")}</p>
         </div>
       )}
     </div>

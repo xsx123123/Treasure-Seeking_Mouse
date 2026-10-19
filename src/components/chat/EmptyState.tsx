@@ -35,7 +35,7 @@ export function EmptyState({ onPick, composer, submitting, dialogContainer }: { 
         </button>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-helix">{t("brand.name")}</p>
-          <h1 className="mt-1 text-[22px] font-semibold leading-snug sm:text-[26px]">{t("empty.headline")}</h1>
+          <h1 className="mt-1 text-display font-semibold leading-snug sm:text-[26px]">{t("empty.headline")}</h1>
         </div>
       </div>
       <p className="-mt-2 text-sm leading-relaxed text-muted-foreground">{t("empty.subHeadline")}</p>
@@ -48,7 +48,7 @@ export function EmptyState({ onPick, composer, submitting, dialogContainer }: { 
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-sm font-semibold">{t(`empty.${id}.title`)}</span>
-                  <span className="text-[11px] text-muted-foreground">{t(`empty.${id}.alias`)}</span>
+                  <span className="text-xs text-muted-foreground">{t(`empty.${id}.alias`)}</span>
                 </span>
                 <span className="mt-2 block text-xs leading-relaxed text-muted-foreground">{t(`empty.${id}.description`)}</span>
               </span>
@@ -65,7 +65,7 @@ export function EmptyState({ onPick, composer, submitting, dialogContainer }: { 
           </section>
         ))}
       </div>
-      <p className="text-center text-[11px] leading-relaxed text-muted-foreground">{t("empty.sources")}</p>
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">{t("empty.sources")}</p>
       </div>
       <Dialog open={eggOpen} onOpenChange={setEggOpen} modal={!dialogContainer}>
         <DialogContent portalContainer={dialogContainer} onCloseAutoFocus={dialogContainer ? (event) => {

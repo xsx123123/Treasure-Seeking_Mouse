@@ -48,13 +48,13 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t("stats.title")}>
-      <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 overlay-dim" onClick={onClose} />
       <div className="relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft-lg">
         {/* 头部 */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <BarChart3 size={16} className="text-helix" />
-          <h2 className="font-display text-[15px] font-semibold tracking-tight">{t("stats.title")}</h2>
-          <span className="text-[11px] text-muted-foreground/70">{t("stats.subtitle")}</span>
+          <h2 className="font-display text-sm font-semibold tracking-tight">{t("stats.title")}</h2>
+          <span className="text-xs text-muted-foreground/70">{t("stats.subtitle")}</span>
           <button
             type="button"
             onClick={() => void load()}
@@ -78,7 +78,7 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
         {/* 内容 */}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {error ? (
-            <p className="py-10 text-center text-[13px] text-muted-foreground">{t("err.statsUnavailable")}</p>
+            <p className="py-10 text-center text-cap text-muted-foreground">{t("err.statsUnavailable")}</p>
           ) : !data ? (
             <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
               <Loader2 size={16} className="animate-spin" /> {t("stats.loading")}
@@ -111,13 +111,13 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
 
               {/* 每个工具的使用情况 */}
               <h3 className="mt-5 mb-2 flex items-baseline gap-2">
-                <span className="text-[13px] font-semibold tracking-wide text-foreground">{t("stats.perTool")}</span>
-                <span className="text-[11px] text-muted-foreground/80">
+                <span className="text-cap font-semibold tracking-wide text-foreground">{t("stats.perTool")}</span>
+                <span className="text-xs text-muted-foreground/80">
                   {t("stats.perToolSummary", { types: data.tools.length, calls: fmt(data.toolCalls) })}
                 </span>
               </h3>
               {data.tools.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-[12.5px] text-muted-foreground">
+                <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-cap text-muted-foreground">
                   {t("stats.toolEmpty")}
                 </p>
               ) : (
@@ -125,20 +125,20 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
                   {data.tools.map((tool) => (
                     <li key={tool.name} className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="min-w-0 truncate text-[12.5px] text-foreground/90" title={tool.name}>
+                        <span className="min-w-0 truncate text-cap text-foreground/90" title={tool.name}>
                           {toolLabel(lang as Lang, tool.name, tool.label)}
-                          <span className="ml-1.5 font-mono text-[10.5px] text-muted-foreground/70">{tool.name.replace(/^seqout_/, "")}</span>
+                          <span className="ml-1.5 font-mono text-xs text-muted-foreground/70">{tool.name.replace(/^seqout_/, "")}</span>
                         </span>
-                        <span className="shrink-0 font-mono text-[12px] text-foreground">
+                        <span className="shrink-0 font-mono text-cap text-foreground">
                           {fmt(tool.count)}
-                          {tool.empties > 0 ? <span className="ml-1 text-[10.5px] text-pet-amber-deep">{t("stats.toolBlank", { n: fmt(tool.empties) })}</span> : null}
-                          {tool.errors > 0 ? <span className="ml-1 text-[10.5px] text-red-500">{t("stats.toolFailed", { n: fmt(tool.errors) })}</span> : null}
+                          {tool.empties > 0 ? <span className="ml-1 text-xs text-pet-amber-deep">{t("stats.toolBlank", { n: fmt(tool.empties) })}</span> : null}
+                          {tool.errors > 0 ? <span className="ml-1 text-xs text-red-500">{t("stats.toolFailed", { n: fmt(tool.errors) })}</span> : null}
                         </span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
                         <div
-                          className="h-full rounded-full bg-helix/70 transition-[width] duration-500"
-                          style={{ width: `${maxTool ? Math.max(4, Math.round((tool.count / maxTool) * 100)) : 0}%` }}
+                          className="h-full w-full origin-left rounded-full bg-helix/70 transition-transform duration-500"
+                          style={{ transform: `scaleX(${maxTool ? Math.max(4, Math.round((tool.count / maxTool) * 100)) / 100 : 0})` }}
                         />
                       </div>
                     </li>
@@ -151,7 +151,7 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
 
         {/* 底部：统计口径说明 */}
         {data ? (
-          <div className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground/70">
+          <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground/70">
             {t("stats.since", {
               since: new Date(data.since).toLocaleString(lang === "zh" ? "zh-CN" : "en-US"),
               updated: new Date(data.updatedAt || data.since).toLocaleString(lang === "zh" ? "zh-CN" : "en-US"),
@@ -166,12 +166,12 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
 function StatCard({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint?: string }): React.ReactElement {
   return (
     <div className="rounded-xl border border-border bg-background/50 px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="text-helix">{icon}</span>
         {label}
       </div>
-      <p className="font-display mt-1 text-[22px] font-semibold leading-none tracking-tight text-foreground">{value}</p>
-      {hint ? <p className="mt-1 truncate text-[10.5px] text-muted-foreground/70" title={hint}>{hint}</p> : null}
+      <p className="font-display mt-1 text-display font-semibold leading-none tracking-tight text-foreground">{value}</p>
+      {hint ? <p className="mt-1 truncate text-xs text-muted-foreground/70" title={hint}>{hint}</p> : null}
     </div>
   );
 }

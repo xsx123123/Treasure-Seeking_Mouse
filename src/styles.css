@@ -53,6 +53,10 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-display: var(--font-display);
+  /* 字号五档刻度（宪法 §2.3 唯一来源）：xs 11 / cap 12.5 / sm 14(默认) / base 16(默认) / display 22 */
+  --text-xs: 11px;
+  --text-cap: 12.5px;
+  --text-display: 22px;
 }
 
 :root {
@@ -198,6 +202,30 @@
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+/* ---------- 公共组件类 ---------- */
+@layer components {
+  /* 全屏遮罩统一类：去 blur（低端设备 GPU 合成友好），浓度统一补偿。
+     定位/层级/z-index/开合动画由调用处既有类承担，本类只管视觉参数。 */
+  .overlay-dim {
+    background-color: rgb(0 0 0 / 0.5);
+  }
+
+  /* 折叠卡片头按钮（GroundingNotice / SuggestionBlock / DownloadBoostCard 共用）：
+     布局 + hover 背景统一（原三处 hover 透明度 70/60/60 微差归一为 65%）。 */
+  .collapse-trigger {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    transition: background-color 0.15s ease;
+  }
+  .collapse-trigger:hover {
+    background-color: color-mix(in srgb, var(--color-secondary) 65%, transparent);
   }
 }
 
@@ -363,7 +391,7 @@
   border-radius: 999px;
   background: linear-gradient(180deg, #ffd34d, #f5a623);
   color: #5a3a00;
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 800;
   line-height: 1;
   font-family: var(--font-sans);
@@ -492,7 +520,7 @@
   top: 6px;
   right: 10px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: oklch(0.7 0.01 247);
@@ -803,7 +831,7 @@
 }
 .pet-orbit-item:active { transform: rotate(var(--orbit-angle)) translateY(calc((var(--orbit-radius) - 1px) * -1)) rotate(calc(var(--orbit-angle) * -1)) scale(0.94); }
 .pet-orbit-chest { width: 32px; height: 32px; margin: -16px; background: var(--color-pet-gold-soft); }
-.pet-orbit-badge { width: 22px; height: 22px; margin: -11px; font-size: 10px; }
+.pet-orbit-badge { width: 22px; height: 22px; margin: -11px; font-size: var(--text-xs); }
 
 /* 文献列表条目：与文献卡片标题匹配的可点击项，点击弹详情 */
 .md-body li.lit-ref {

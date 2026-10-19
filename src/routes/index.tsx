@@ -114,8 +114,8 @@ function ChatPage(): React.ReactElement {
   }, []);
   const [petEvent, setPetEvent] = useState<PetEvent | null>(null); // 桌宠事件流（仅 UI 反馈，不影响消息逻辑）
   const [petPanelOpen, setPetPanelOpen] = useState(false); // 顶栏「阿寻设置」弹层：找回阿寻 / 大小 / 常驻
-  // 设置面板 portal 到 body 定位：顶栏 header 的 backdrop-blur 是 z-auto 层叠上下文，
-  // 面板留在 header 内会被主内容区/抽屉（z-50）压住，故以触发按钮 rect 计算 fixed 坐标
+  // 设置面板 portal 到 body 定位：面板留在 header 内会被后绘制的主内容区/抽屉（z-50）盖住
+  // （2026-10-06 实测踩坑：空态 Hero 卡压设置面板），故以触发按钮 rect 计算 fixed 坐标挂 body
   const petBtnRef = useRef<HTMLButtonElement | null>(null);
   const [petPanelPos, setPetPanelPos] = useState({ top: 0, right: 0 });
   const togglePetPanel = (): void => {
@@ -619,7 +619,7 @@ function ChatPage(): React.ReactElement {
             onClick={toggleCollapsed}
             title={t("header.collapseSessions")}
             aria-label={t("header.collapseSessions")}
-            className="absolute -right-3 top-5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:border-helix/50 hover:text-helix"
+            className="absolute -right-3 top-5 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-soft transition-colors hover:border-helix/50 hover:text-helix"
           >
             <ChevronsLeft size={13} />
           </button>
@@ -629,7 +629,7 @@ function ChatPage(): React.ReactElement {
       {/* H5 抽屉 */}
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-0 overlay-dim" onClick={() => setDrawerOpen(false)} />
           <div className="safe-t absolute inset-y-0 left-0 w-[280px] max-w-[85%] shadow-soft-lg">
             <MobileDrawerHeader onClose={() => setDrawerOpen(false)} />
             <div className="h-[calc(100%-49px)]">{sidebar}</div>
@@ -648,7 +648,7 @@ function ChatPage(): React.ReactElement {
           >
             <Menu size={18} />
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+          <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
             {activeId
               ? sessions.find((s) => s.id === activeId)?.title ?? t("brand.name")
               : user

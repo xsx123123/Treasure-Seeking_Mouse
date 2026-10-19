@@ -41,12 +41,12 @@ export function ToolTrace({
       return (
         <span
           key={`${it.name}-${i}`}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] leading-none ${
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-xs leading-none ${
             it.status === "running"
               ? "scan-line border-helix/30 bg-helix-soft text-helix"
               : it.status === "error"
                 ? "border-destructive/30 bg-destructive/5 text-destructive"
-                : "border-border bg-card text-muted-foreground shadow-sm"
+                : "border-border bg-card text-muted-foreground shadow-soft"
           }`}
         >
           {statusIcon(it.status)}
@@ -62,7 +62,7 @@ export function ToolTrace({
     return (
       <span
         key={`${it.name}-${i}`}
-        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-helix/25 bg-helix-soft/55 px-2.5 py-1 font-mono text-[11px] leading-none text-helix"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-helix/25 bg-helix-soft/55 px-2.5 py-1 font-mono text-xs leading-none text-helix"
         title={sourceSummary}
         aria-label={sourceSummary}
       >

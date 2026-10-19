@@ -208,7 +208,7 @@ export const Markdown = memo(function Markdown({
   return (
     <HostMessageContext.Provider value={hostMessageId ?? null}>
       <AllowLinkHintContext.Provider value={allowLinkHint}>
-        <div className="md-body text-[14.5px]">
+        <div className="md-body text-sm">
           <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={components}>
             {text}
           </ReactMarkdown>

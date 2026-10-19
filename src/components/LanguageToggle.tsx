@@ -13,7 +13,7 @@ export function LanguageToggle({ size = 17, className = "" }: { size?: number; c
       className={`flex items-center justify-center gap-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-helix ${className}`}
     >
       <Languages size={size} />
-      <span className="font-mono text-[11px] leading-none">{t("header.lang")}</span>
+      <span className="font-mono text-xs leading-none">{t("header.lang")}</span>
     </button>
   );
 }

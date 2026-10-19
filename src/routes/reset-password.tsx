@@ -65,13 +65,13 @@ function ResetPasswordPage(): React.ReactElement {
             <BrandMark size={20} />
           </span>
           <div>
-            <p className="font-display text-[16px] font-semibold tracking-tight">{t("reset.title")}</p>
-            <p className="text-[11.5px] text-muted-foreground">{t("brand.name")}</p>
+            <p className="font-display text-base font-semibold tracking-tight">{t("reset.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("brand.name")}</p>
           </div>
         </div>
 
         {!ready ? (
-          <p className="py-6 text-center text-[13px] text-muted-foreground">{t("reset.checking")}</p>
+          <p className="py-6 text-center text-cap text-muted-foreground">{t("reset.checking")}</p>
         ) : (
           <div className="space-y-3.5">
             <div className="space-y-1.5">
@@ -83,11 +83,11 @@ function ResetPasswordPage(): React.ReactElement {
                 placeholder={t("reset.passwordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-10 rounded-lg border-border bg-card shadow-sm focus-visible:border-helix focus-visible:ring-2 focus-visible:ring-helix/20"
+                className="h-10 rounded-lg border-border bg-card shadow-soft focus-visible:border-helix focus-visible:ring-2 focus-visible:ring-helix/20"
               />
             </div>
             {msg ? (
-              <p className={`rounded-md border px-3 py-2 text-[12.5px] ${msg.type === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-helix/30 bg-helix-soft text-helix"}`}>
+              <p className={`rounded-md border px-3 py-2 text-cap ${msg.type === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-helix/30 bg-helix-soft text-helix"}`}>
                 {msg.text}
               </p>
             ) : null}

@@ -28,18 +28,18 @@ export function DownloadBoostCard({ accession }: { accession: string | null }): 
   }
 
   return (
-    <div className="card-in relative mt-3 overflow-hidden rounded-lg border border-border bg-card shadow-sm before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-gradient-to-b before:from-helix/60 before:to-strand/40">
+    <div className="card-in relative mt-3 overflow-hidden rounded-lg border border-border bg-card shadow-soft before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-gradient-to-b before:from-helix/60 before:to-strand/40">
       {/* 折叠头：标题 + 编号胶囊 + 展开箭头 */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/60"
+        className="collapse-trigger"
       >
         <Download size={13} className="shrink-0 text-helix" />
-        <span className="text-[12.5px] font-medium text-foreground/80">{t("boost.title")}</span>
+        <span className="text-cap font-medium text-foreground/80">{t("boost.title")}</span>
         {known ? (
-          <span className="rounded-full bg-secondary px-1.5 py-px font-mono text-[10px] text-muted-foreground">{known}</span>
+          <span className="rounded-full bg-secondary px-1.5 py-px font-mono text-xs text-muted-foreground">{known}</span>
         ) : null}
         <ChevronDown
           size={14}
@@ -54,7 +54,7 @@ export function DownloadBoostCard({ accession }: { accession: string | null }): 
                   href={sheetUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="flex items-center gap-0.5 text-[11px] text-helix story-link"
+                  className="flex items-center gap-0.5 text-xs text-helix story-link"
                 >
                   {t("boost.download")}
                   <Download size={11} />
@@ -64,30 +64,30 @@ export function DownloadBoostCard({ accession }: { accession: string | null }): 
                 href={PROJECT_URL}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="flex items-center gap-0.5 text-[11px] text-helix story-link"
+                className="flex items-center gap-0.5 text-xs text-helix story-link"
               >
                 {t("boost.page")}
                 <ExternalLink size={11} />
               </a>
           </div>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">{t("boost.desc")}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("boost.desc")}</p>
           <div className="mt-2 rounded-md border border-border bg-muted/60">
             <div className="flex items-center justify-between border-b border-border px-2.5 py-1">
-              <span className="font-mono text-[10px] text-muted-foreground/70">polariseq</span>
+              <span className="font-mono text-xs text-muted-foreground/70">polariseq</span>
               <button
                 type="button"
                 onClick={onCopy}
                 title={copied ? t("boost.copied") : t("boost.copy")}
                 aria-label={copied ? t("boost.copied") : t("boost.copy")}
-                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:bg-secondary hover:text-helix"
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-helix"
               >
                 {copied ? <Check size={11} className="text-helix" /> : <Copy size={11} />}
                 {copied ? t("boost.copied") : t("boost.copy")}
               </button>
             </div>
-            <pre className="overflow-x-auto px-2.5 py-2 font-mono text-[11px] leading-relaxed text-foreground">{commands}</pre>
+            <pre className="overflow-x-auto px-2.5 py-2 font-mono text-xs leading-relaxed text-foreground">{commands}</pre>
           </div>
-          <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground/80">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground/80">
             {known ? t("boost.noteKnown", { acc: known }) : t("boost.note")}
           </p>
         </div>
