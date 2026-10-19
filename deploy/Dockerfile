@@ -33,7 +33,7 @@ COPY . .
 RUN pnpm run build   # 产出 /app/dist
 
 # ---------- web：静态托管 + 反代 ----------
-FROM nginx:1.27-alpine AS web
+FROM nginx:1.28-alpine AS web
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY deploy/nginx.docker.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

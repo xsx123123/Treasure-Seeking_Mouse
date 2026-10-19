@@ -5,8 +5,6 @@ server/.env
 .env
 .env.*
 !.env*.example
-!nginx.docker.conf
-!docker-compose.yml
 *.local
 .git
 .gitignore
@@ -16,3 +14,6 @@ docs
 archive
 .DS_Store
 截屏*.png
+# 本地运行数据不进镜像（LLM 用量统计 + 访客指纹/账号历史）
+server/.stats.json
+server/data/
