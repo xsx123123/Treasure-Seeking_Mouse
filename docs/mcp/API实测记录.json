@@ -1,0 +1,451 @@
+{
+  "date": "2026-10-18",
+  "note": "直接 HTTPS 请求；仅为抽样验证，不代表 CygnusX 集成验收",
+  "results": [
+    {
+      "case": "gene_meta",
+      "url": "https://mygene.info/v3/metadata",
+      "method": "GET",
+      "status": 200,
+      "bytes": 53557,
+      "summary": {
+        "build_version": "20260922",
+        "build_date": "2026-09-22T13:02:46.100487-07:00",
+        "biothing_type": "gene",
+        "genome_assembly": {
+          "human": "hg38",
+          "mouse": "mm39",
+          "rat": "rn6",
+          "fruitfly": "dm6",
+          "nematode": "ce11",
+          "zebrafish": "danRer11",
+          "thale-cress": "araTha1",
+          "frog": "xenTro9",
+          "pig": "susScr11"
+        },
+        "sources": [
+          "orthology_agr",
+          "entrez",
+          "cpdb",
+          "pharos",
+          "homologene",
+          "clingen",
+          "chembl",
+          "pharmgkb",
+          "ensembl",
+          "entrez_unigene",
+          "ensembl_protists",
+          "uniprot_ipi",
+          "reagent",
+          "uniprot_pir",
+          "ensembl_genomic_pos_mm9",
+          "mygene_unii",
+          "ensembl_fungi",
+          "wikipedia",
+          "reactome",
+          "generif",
+          "ensembl_genomic_pos_hg19",
+          "ensembl_plant",
+          "ensembl_metazoa",
+          "ucsc",
+          "umls",
+          "reporter",
+          "refseq",
+          "uniprot_pdb",
+          "cell_marker",
+          "pantherdb",
+          "exac",
+          "uniprot"
+        ]
+      }
+    },
+    {
+      "case": "gene_fields",
+      "url": "https://mygene.info/v3/metadata/fields",
+      "method": "GET",
+      "status": 200,
+      "bytes": 22974,
+      "summary": {
+        "field_count": 366,
+        "sample_fields": [
+          "AllianceGenome",
+          "AnimalQTLdb",
+          "FLYBASE",
+          "HGNC",
+          "HPRD",
+          "MGI",
+          "MIM",
+          "RATMAP",
+          "RGD",
+          "SGD",
+          "TAIR",
+          "Vega"
+        ]
+      }
+    },
+    {
+      "case": "gene_search",
+      "url": "https://mygene.info/v3/query?q=symbol:CDK2&species=9606&fields=symbol,name,taxid,entrezgene&size=2",
+      "method": "GET",
+      "status": 200,
+      "bytes": 169,
+      "summary": {
+        "took": 1,
+        "total": 1,
+        "max_score": 17.343813,
+        "hits": [
+          {
+            "_id": "1017",
+            "_score": 17.343813,
+            "entrezgene": "1017",
+            "name": "cyclin dependent kinase 2",
+            "symbol": "CDK2",
+            "taxid": 9606
+          }
+        ]
+      }
+    },
+    {
+      "case": "gene_get",
+      "url": "https://mygene.info/v3/gene/1017?fields=symbol,name,taxid",
+      "method": "GET",
+      "status": 200,
+      "bytes": 91,
+      "summary": {
+        "_id": "1017",
+        "_version": 1,
+        "name": "cyclin dependent kinase 2",
+        "symbol": "CDK2",
+        "taxid": 9606
+      }
+    },
+    {
+      "case": "gene_batch",
+      "url": "https://mygene.info/v3/query",
+      "method": "POST",
+      "status": 200,
+      "bytes": 124,
+      "summary": [
+        {
+          "query": "CDK2",
+          "_id": "1017",
+          "_score": 17.343813,
+          "symbol": "CDK2",
+          "taxid": 9606
+        },
+        {
+          "query": "ZZZZ_INVALID_123",
+          "notfound": true
+        }
+      ]
+    },
+    {
+      "case": "variant_meta",
+      "url": "https://myvariant.info/v1/metadata",
+      "method": "GET",
+      "status": 200,
+      "bytes": 12120,
+      "summary": {
+        "build_version": "20250624",
+        "build_date": "2025-06-24T16:27:25.889841-07:00",
+        "biothing_type": "variant",
+        "sources": [
+          "cosmic",
+          "evs",
+          "cgi",
+          "geno2mp",
+          "gnomad",
+          "civic",
+          "gwassnps",
+          "snpeff",
+          "emv",
+          "cadd",
+          "dbnsfp",
+          "grasp",
+          "wellderly",
+          "clinvar",
+          "snpedia",
+          "dbsnp",
+          "docm",
+          "exac",
+          "mutdb"
+        ]
+      }
+    },
+    {
+      "case": "variant_meta38",
+      "url": "https://myvariant.info/v1/metadata?assembly=hg38",
+      "method": "GET",
+      "status": 200,
+      "bytes": 6017,
+      "summary": {
+        "build_version": "20250624",
+        "build_date": "2025-06-24T16:27:39.012502-07:00",
+        "biothing_type": "variant",
+        "sources": [
+          "dbnsfp",
+          "evs",
+          "clinvar",
+          "dbsnp",
+          "clingen",
+          "gnomad",
+          "uniprot",
+          "snpeff",
+          "emv"
+        ]
+      }
+    },
+    {
+      "case": "variant_fields",
+      "url": "https://myvariant.info/v1/metadata/fields",
+      "method": "GET",
+      "status": 200,
+      "bytes": 99234,
+      "summary": {
+        "field_count": 1621,
+        "sample_fields": [
+          "_seqhashed",
+          "_seqhashed._flag",
+          "cadd",
+          "cadd.1000g",
+          "cadd.1000g.af",
+          "cadd.1000g.afr",
+          "cadd.1000g.amr",
+          "cadd.1000g.asn",
+          "cadd.1000g.eur",
+          "cadd.alt",
+          "cadd.anc",
+          "cadd.annotype"
+        ]
+      }
+    },
+    {
+      "case": "variant_search",
+      "url": "https://myvariant.info/v1/query?q=rs58991260&fields=dbsnp.rsid&size=2&assembly=hg19",
+      "method": "GET",
+      "status": 200,
+      "bytes": 163,
+      "summary": {
+        "took": 4,
+        "total": 1,
+        "max_score": 21.30118,
+        "hits": [
+          {
+            "_id": "chr1:g.218631822G>A",
+            "_score": 21.30118,
+            "dbsnp": {
+              "_license": "http://bit.ly/2AqoLOc",
+              "rsid": "rs58991260"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case": "variant_get",
+      "url": "https://myvariant.info/v1/variant/chr1:g.35367G%3EA?fields=dbsnp.rsid&assembly=hg19",
+      "method": "GET",
+      "status": 200,
+      "bytes": 105,
+      "summary": {
+        "_id": "chr1:g.35367G>A",
+        "_version": 1,
+        "dbsnp": {
+          "_license": "http://bit.ly/2AqoLOc",
+          "rsid": "rs1553120914"
+        }
+      }
+    },
+    {
+      "case": "variant_batch",
+      "url": "https://myvariant.info/v1/variant",
+      "method": "POST",
+      "status": 200,
+      "bytes": 133,
+      "summary": [
+        {
+          "query": "chr1:g.35367G>A",
+          "_id": "chr1:g.35367G>A",
+          "_version": 1,
+          "dbsnp": {
+            "_license": "http://bit.ly/2AqoLOc",
+            "rsid": "rs1553120914"
+          }
+        }
+      ]
+    },
+    {
+      "case": "chem_meta",
+      "url": "https://mychem.info/v1/metadata",
+      "method": "GET",
+      "status": 200,
+      "bytes": 62241,
+      "summary": {
+        "build_version": "20261006",
+        "build_date": "2026-10-05T19:57:20.416496-07:00",
+        "biothing_type": "chem",
+        "sources": [
+          "drugbank",
+          "ginas",
+          "chebi",
+          "drugcentral",
+          "umls",
+          "ndc",
+          "chembl",
+          "unii",
+          "pharmgkb",
+          "gtopdb",
+          "aeolus",
+          "unichem",
+          "gsrs",
+          "fda_orphan_drug",
+          "pubchem",
+          "sider"
+        ]
+      }
+    },
+    {
+      "case": "chem_fields",
+      "url": "https://mychem.info/v1/metadata/fields",
+      "method": "GET",
+      "status": 200,
+      "bytes": 71357,
+      "summary": {
+        "field_count": 1085,
+        "sample_fields": [
+          "aeolus",
+          "aeolus.drug_id",
+          "aeolus.drug_name",
+          "aeolus.inchikey",
+          "aeolus.indications",
+          "aeolus.indications.count",
+          "aeolus.indications.id",
+          "aeolus.indications.meddra_code",
+          "aeolus.indications.name",
+          "aeolus.no_of_outcomes",
+          "aeolus.outcomes",
+          "aeolus.outcomes.case_count"
+        ]
+      }
+    },
+    {
+      "case": "chem_search",
+      "url": "https://mychem.info/v1/query?q=imatinib&fields=chembl.pref_name,chebi.name&size=2",
+      "method": "GET",
+      "status": 200,
+      "bytes": 454,
+      "summary": {
+        "took": 9,
+        "total": 18,
+        "max_score": 34.92011,
+        "hits": [
+          {
+            "_id": "KTUFNOKKBVMGRW-UHFFFAOYSA-N",
+            "_score": 34.92011,
+            "chebi": {
+              "_license": "http://bit.ly/2KAUCAm",
+              "name": "imatinib"
+            },
+            "chembl": {
+              "_license": "http://bit.ly/2KAUCAm",
+              "pref_name": "IMATINIB"
+            }
+          },
+          {
+            "_id": "YLMAHDNUQAMNNX-UHFFFAOYSA-N",
+            "_score": 31.989546,
+            "chebi": {
+              "_license": "http://bit.ly/2KAUCAm",
+              "name": "imatinib methanesulfonate"
+            },
+            "chembl": {
+              "_license": "http://bit.ly/2KAUCAm",
+              "pref_name": "IMATINIB MESYLATE"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case": "chem_get",
+      "url": "https://mychem.info/v1/chem/CHEMBL941?fields=chembl.pref_name",
+      "method": "GET",
+      "status": 200,
+      "bytes": 119,
+      "summary": {
+        "_id": "KTUFNOKKBVMGRW-UHFFFAOYSA-N",
+        "_version": 1,
+        "chembl": {
+          "_license": "http://bit.ly/2KAUCAm",
+          "pref_name": "IMATINIB"
+        }
+      }
+    },
+    {
+      "case": "chem_batch",
+      "url": "https://mychem.info/v1/chem",
+      "method": "POST",
+      "status": 200,
+      "bytes": 141,
+      "summary": [
+        {
+          "query": "CHEMBL941",
+          "_id": "KTUFNOKKBVMGRW-UHFFFAOYSA-N",
+          "_version": 1,
+          "chembl": {
+            "_license": "http://bit.ly/2KAUCAm",
+            "pref_name": "IMATINIB"
+          }
+        }
+      ]
+    },
+    {
+      "case": "variant_rs38",
+      "url": "https://myvariant.info/v1/query?q=rs58991260&fields=dbsnp.rsid,dbsnp.hg38,dbsnp.hg19&size=2&assembly=hg38",
+      "method": "GET",
+      "status": 200,
+      "summary": {
+        "took": 4,
+        "total": 1,
+        "max_score": 17.365068,
+        "hits": [
+          {
+            "_id": "chr1:g.218458480G>A",
+            "_score": 17.365068,
+            "dbsnp": {
+              "_license": "http://bit.ly/2AqoLOc",
+              "hg38": {
+                "end": 218458480,
+                "start": 218458480
+              },
+              "rsid": "rs58991260"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "case": "variant_get38",
+      "url": "https://myvariant.info/v1/variant/chr1:g.218458480G%3EA?fields=dbsnp.rsid&assembly=hg38",
+      "method": "GET",
+      "status": 200,
+      "summary": {
+        "_id": "chr1:g.218458480G>A",
+        "_version": 1,
+        "dbsnp": {
+          "_license": "http://bit.ly/2AqoLOc",
+          "rsid": "rs58991260"
+        }
+      }
+    },
+    {
+      "case": "variant_fields38",
+      "url": "https://myvariant.info/v1/metadata/fields?assembly=hg38",
+      "method": "GET",
+      "status": 200,
+      "summary": {
+        "field_count": 979
+      }
+    }
+  ]
+}

@@ -1,0 +1,721 @@
+{
+  "date": "2026-10-18",
+  "note": "只读小规模抽样，不代表集成验收；HTTP200还需检查业务内容",
+  "results": [
+    {
+      "case": "ensembl_genomes_ping",
+      "url": "https://rest.ensemblgenomes.org/info/ping?content-type=application/json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:34.375861+00:00",
+      "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'rest.ensemblgenomes.org'. (_ssl.c:1082)>",
+      "seconds": 2.92,
+      "validation": "失败抽样；保留原始状态"
+    },
+    {
+      "case": "ensembl_plants_species",
+      "url": "https://rest.ensemblgenomes.org/info/species?division=EnsemblPlants&content-type=application/json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:34.376156+00:00",
+      "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'rest.ensemblgenomes.org'. (_ssl.c:1082)>",
+      "seconds": 2.92,
+      "validation": "失败抽样；保留原始状态"
+    },
+    {
+      "case": "ensembl_plant_lookup",
+      "url": "https://rest.ensemblgenomes.org/lookup/id/AT3G52430?content-type=application/json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:34.376245+00:00",
+      "error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'rest.ensemblgenomes.org'. (_ssl.c:1082)>",
+      "seconds": 2.94,
+      "validation": "失败抽样；保留原始状态"
+    },
+    {
+      "case": "ensembl_main_plant_lookup",
+      "url": "https://rest.ensembl.org/lookup/id/AT3G52430?content-type=application/json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:34.376299+00:00",
+      "status": 200,
+      "final_url": "https://rest.ensembl.org/lookup/id/AT3G52430?content-type=application/json",
+      "content_type": "application/json",
+      "bytes": 422,
+      "keys": [
+        "species",
+        "end",
+        "description",
+        "id",
+        "display_name",
+        "strand",
+        "start",
+        "db_type",
+        "source",
+        "canonical_transcript",
+        "object_type",
+        "logic_name",
+        "biotype",
+        "assembly_name",
+        "seq_region_name"
+      ],
+      "summary": "{'species': 'arabidopsis_thaliana', 'end': 19434450, 'description': 'alpha/beta-Hydrolases superfamily protein [Source:NCBI gene (formerly Entrezgene);Acc:824408]', 'id': 'AT3G52430', 'display_name': 'PAD4', 'strand': 1, 'start': 19431095, 'db_type': 'core', 'source': 'araport11', 'canonical_transcript': 'AT3G52430.1.', 'object_type': 'Gene', 'logic_name': 'araport11', 'biotype': 'protein_coding', 'assembly_name': 'TAIR10', 'seq_region_name': '3'}",
+      "seconds": 2.92,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "gramene_schema",
+      "url": "https://data.gramene.org/v69/swagger",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:37.293040+00:00",
+      "status": 200,
+      "final_url": "https://data.gramene.org/v69/swagger",
+      "content_type": "application/json",
+      "bytes": 52003,
+      "keys": [
+        "swagger",
+        "info",
+        "basePath",
+        "schemes",
+        "consumes",
+        "produces",
+        "paths",
+        "definitions",
+        "parameters"
+      ],
+      "summary": "{'swagger': '2.0', 'info': {'version': '0.59.0', 'title': 'API for gramene release 69'}, 'basePath': '/v69'}",
+      "seconds": 4.01,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "gramene_search",
+      "url": "https://data.gramene.org/v69/search?q=AT3G52430&rows=1",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:37.293622+00:00",
+      "status": 200,
+      "final_url": "https://data.gramene.org/v69/search?q=AT3G52430&rows=1",
+      "content_type": "text/plain",
+      "bytes": 3026,
+      "keys": [
+        "responseHeader",
+        "response",
+        "facet_counts",
+        "stats"
+      ],
+      "summary": "{'responseHeader': {'status': 0, 'QTime': 19, 'params': {'q': 'AT3G52430', 'stats': 'true', 'rows': '1', 'facet': 'true'}}, 'response': {'numFound': 5, 'start': 0, 'maxScore': 36.101875, 'numFoundExact': True, 'docs': [{'id': 'AT3G52430', 'name': 'PAD4', 'description': 'alpha/beta-Hydrolases superfamily protein', 'taxon_id': 3702001, 'biotype': 'protein_coding', 'synonyms': ['ARABIDOPSIS PHYTOALEXIN DEFICIENT 4', 'ATPAD4', 'PHYTOALEXIN DEFICIENT 4'], 'system_name': 'arabidopsis_thaliana', 'capabilities': ['location', 'expression', 'homology', 'pubs', 'xrefs', 'pathways', 'domains', 'PO', 'taxonomy', 'familyRoot'], 'summary': \"Encodes a lipase",
+      "seconds": 3.67,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "dfam_search",
+      "url": "https://dfam.org/api/families?name=CACTA&format=summary&limit=2",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:37.294557+00:00",
+      "status": 200,
+      "final_url": "https://dfam.org/api/families?name=CACTA&format=summary&limit=2",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 30,
+      "keys": [
+        "total_count",
+        "results"
+      ],
+      "summary": "{'total_count': 0, 'results': []}",
+      "seconds": 3.38,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "dfam_family",
+      "url": "https://dfam.org/api/families/DF000000001",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:37.312350+00:00",
+      "status": 200,
+      "final_url": "https://dfam.org/api/families/DF000000001",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 2698,
+      "keys": [
+        "accession",
+        "name",
+        "version",
+        "title",
+        "description",
+        "length",
+        "classification",
+        "repeat_type_name",
+        "repeat_subtype_name",
+        "clades",
+        "consensus_sequence",
+        "author",
+        "date_created",
+        "date_modified",
+        "target_site_cons",
+        "refineable",
+        "disabled",
+        "model_mask",
+        "hmm_general_threshold",
+        "source_method_description"
+      ],
+      "summary": "{'accession': 'DF000000001', 'name': 'MIR', 'version': 4, 'title': 'MIR (Mammalian-wide Interspersed Repeat)', 'description': \"MIR is a pan-mammalian SINE with a 5' end derived from a tRNA, a central deeply-conserved CORE region [5], and a 3' terminal ~55bp related to an L2 LINE.\", 'length': 262, 'classification': 'root;Interspersed_Repeat;Transposable_Element;Class_I_Retrotransposition;LINE-dependent_Retroposon;SINE;tRNA_Promoter;MIR-core;L2-end', 'repeat_type_name': 'SINE', 'repeat_subtype_name': 'MIR', 'clades': ['root;cellular organisms;Eukaryota;Opisthokonta;Metazoa;Eumetazoa;Bilateria;Deuterostomia;Chordata;Craniata;Vertebrata;Gnathosto",
+      "seconds": 4.17,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "dfam_schema",
+      "url": "https://dfam.org/releases/current/apidocs/openapi.yaml",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:40.678530+00:00",
+      "status": 404,
+      "error": "<!doctype html>\n<html lang=\"en\" data-critters-container>\n<head>\n  <!-- Global site tag (gtag.js) - Google Analytics -->\n  <script async src=\"https://www.googletagmanager.com/gtag/js?id=UA-135151408-1\"></script>\n  <script>\n    window.dataLayer = window.dataLayer || [];\n    function gtag(){dataLayer.push(arguments);}\n    gtag('js', new Date());\n  </script>\n  <meta charset=\"utf-8\">\n  <!-- Built at Thu, 01 Oct 2026 17:11:44 -0700 from revision d0610b2 -->\n  <title>Dfam</title>\n  <meta name=\"descript",
+      "seconds": 2.9,
+      "validation": "失败抽样；保留原始状态"
+    },
+    {
+      "case": "atlas_experiments",
+      "url": "https://www.ebi.ac.uk/gxa/json/experiments",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:40.967564+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/gxa/json/experiments",
+      "content_type": "application/json;charset=UTF-8",
+      "bytes": 2610219,
+      "keys": [
+        "experiments"
+      ],
+      "summary": "{}",
+      "seconds": 12.64,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "scatlas_experiments",
+      "url": "https://www.ebi.ac.uk/gxa/sc/json/experiments",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:41.301774+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/gxa/sc/json/experiments",
+      "content_type": "application/json;charset=UTF-8",
+      "bytes": 192630,
+      "keys": [
+        "experiments"
+      ],
+      "summary": "{}",
+      "seconds": 2.12,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "string_version",
+      "url": "https://string-db.org/api/json/version",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:41.480873+00:00",
+      "status": 200,
+      "final_url": "https://string-db.org/api/json/version",
+      "content_type": "text/json; charset=utf-8",
+      "bytes": 84,
+      "count": 1,
+      "summary": "[{'string_version': '12.5', 'stable_address': 'https://version-12-5.string-db.org'}]",
+      "seconds": 1.36,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "string_map",
+      "url": "https://string-db.org/api/json/get_string_ids?identifiers=TP53%0DCDK2&species=9606&caller_identity=CygnusX",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:42.837176+00:00",
+      "status": 200,
+      "final_url": "https://string-db.org/api/json/get_string_ids?identifiers=TP53%0DCDK2&species=9606&caller_identity=CygnusX",
+      "content_type": "text/json; charset=utf-8",
+      "bytes": 1536,
+      "count": 2,
+      "summary": "[{'queryIndex': 0, 'queryItem': 'TP53', 'stringId': '9606.ENSP00000269305', 'ncbiTaxonId': 9606, 'taxonName': 'Homo sapiens', 'preferredName': 'TP53', 'annotation': 'Cellular tumor antigen p53; Acts as a tumor suppressor in many tumor types; induces growth arrest or apoptosis depending on the physiological circumstances and cell type. Involved in cell cycle regulation as a trans-activator that acts to negatively regulate cell division by controlling a set of genes required for this process. One of the activated genes is an inhibitor of cyclin-dependent kinases. Apoptosis induction seems to be mediated either by stimulation of BAX and FAS anti",
+      "seconds": 1.02,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "epmc_search",
+      "url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:29165669%20AND%20SRC:MED&format=json&pageSize=1&resultType=core",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:43.420862+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=EXT_ID:29165669%20AND%20SRC:MED&format=json&pageSize=1&resultType=core",
+      "content_type": "application/json;charset=UTF-8",
+      "bytes": 10740,
+      "keys": [
+        "version",
+        "hitCount",
+        "request",
+        "resultList"
+      ],
+      "summary": "{}",
+      "seconds": 1.54,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "epmc_annotations",
+      "url": "https://www.ebi.ac.uk/europepmc/annotations_api/annotationsByArticleIds?articleIds=MED:29165669&format=JSON",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:43.580517+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/europepmc/annotations_api/annotationsByArticleIds?articleIds=MED:29165669&format=JSON",
+      "content_type": "application/json",
+      "bytes": 4981,
+      "count": 1,
+      "summary": "[{'source': 'MED', 'extId': '29165669', 'pmcid': 'PMC5753237', 'annotations': [{'prefix': 'ic archive of human ', 'exact': 'genetic', 'postfix': ' variants and interp', 'tags': [{'name': 'gene', 'uri': 'http://purl.obolibrary.org/obo/SO_0000704'}], 'id': 'http://europepmc.org/article/MED/29165669#ontogene-f6a870c583bc2edc6bf03401ee0a22c7', 'type': 'Sequence', 'section': 'Abstract (http://purl.org/dc/terms/abstract)', 'provider': 'OntoGene'}, {'prefix': 'iduals who have had ', 'exact': 'genetic', 'postfix': ' testing. Submission', 'tags': [{'name': 'gene', 'uri': 'http://purl.obolibrary.org/obo/SO_0000704'}], 'id': 'http://europepmc.org/articl",
+      "seconds": 1.25,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "clinvar_summary",
+      "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=clinvar&id=65533&retmode=json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:43.853012+00:00",
+      "status": 200,
+      "final_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=clinvar&id=65533&retmode=json",
+      "content_type": "application/json; charset=UTF-8",
+      "bytes": 2423,
+      "keys": [
+        "header",
+        "result"
+      ],
+      "summary": "{'header': {'type': 'esummary', 'version': '0.3'}, 'result': {'uids': ['65533'], '65533': {'uid': '65533', 'obj_type': 'single nucleotide variant', 'accession': 'VCV000065533', 'accession_version': 'VCV000065533.11', 'title': 'NM_000081.4(LYST):c.1540C>T (p.Arg514Ter)', 'variation_set': [{'measure_id': '76441', 'variation_xrefs': [{'db_source': 'ClinGen', 'db_id': 'CA344839'}, {'db_source': 'dbSNP', 'db_id': '80338645'}], 'variation_name': 'NM_000081.4(LYST):c.1540C>T (p.Arg514Ter)', 'cdna_change': 'c.1540C>T', 'aliases': [], 'variation_loc': [{'status': 'current', 'assembly_name': 'GRCh38', 'chr': '1', 'band': '1q42.3', 'start': '235809278',",
+      "seconds": 0.58,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "ot_target",
+      "url": "https://api.platform.opentargets.org/api/v4/graphql",
+      "method": "POST",
+      "retrieved_at": "2026-10-18T08:24:44.432229+00:00",
+      "status": 200,
+      "final_url": "https://api.platform.opentargets.org/api/v4/graphql",
+      "content_type": "application/json",
+      "bytes": 68,
+      "keys": [
+        "data"
+      ],
+      "summary": "{'data': {'target': {'id': 'ENSG00000141510', 'approvedSymbol': 'TP53'}}}",
+      "seconds": 2.82,
+      "request_body": {
+        "query": "query($id:String!){target(ensemblId:$id){id approvedSymbol}}",
+        "variables": {
+          "id": "ENSG00000141510"
+        }
+      },
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "ot_schema",
+      "url": "https://api.platform.opentargets.org/api/v4/graphql/schema",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:24:44.828894+00:00",
+      "status": 200,
+      "final_url": "https://api.platform.opentargets.org/api/v4/graphql/schema",
+      "content_type": "text/plain; charset=UTF-8",
+      "bytes": 103655,
+      "preview": "\"API version information\"\ntype APIVersion {\n  \"Optional version suffix (e.g., alpha, beta, rc)\"\n  suffix: String\n\n  \"Minor version number\"\n  y: String!\n\n  \"Patc",
+      "seconds": 1.64,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "ensembl_species_main",
+      "url": "https://rest.ensembl.org/info/species?division=EnsemblPlants&content-type=application/json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:16.460203+00:00",
+      "status": 503,
+      "error": "<html><body><h1>503 Service Unavailable</h1>\nNo server is available to handle this request.\n</body></html>\n",
+      "seconds": 21.21,
+      "validation": "失败抽样；保留原始状态"
+    },
+    {
+      "case": "ensembl_homology",
+      "url": "https://rest.ensembl.org/homology/id/arabidopsis_thaliana/AT3G52430?compara=plants&target_species=oryza_sativa&type=orthologues&content-type=application/json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:16.460489+00:00",
+      "status": 200,
+      "final_url": "https://rest.ensembl.org/homology/id/arabidopsis_thaliana/AT3G52430?compara=plants&target_species=oryza_sativa&type=orthologues&content-type=application/json",
+      "content_type": "application/json",
+      "bytes": 1950,
+      "keys": [
+        "data"
+      ],
+      "summary": "{'data': [{'id': 'AT3G52430', 'homologies': [{'source': {'protein_id': 'AT3G52430.1', 'cigar_line': '6D34M4D8M4D15M11D8M2D13M6D15M8D41M2D3M3D45M70D39M6D4M2D26MD4MD84MD75MD127M', 'id': 'AT3G52430', 'perc_pos': 41.9593, 'taxon_id': 3702, 'perc_id': 30.1294, 'align_seq': '------MDDCRFETSELQASVMISTPLFTDSWSSCNTANC----NGSIKIHD----IAGITYVAIPAVSMI-----------QLGNLVGL--PVTGDVLFPGLSS------DEPLPMVDAAILKLF--------LQLKIKEGLELELLGKKLVVITGHSTGGALAAFTALWLLSQ--SSP---PSFRVFCITFGSPLLGNQSLSTSISRSRLAHNFCHVVSIHDLVPR----------------------------------------------------------------------SSNEQFWPFGTYLFCSDKGGVCLDNAGSVRLMFNILNTT------ATQN--TEEHQRYGHYVFTLSHMFLKSRSFLG-GSIP",
+      "seconds": 2.24,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "dfam_cacta_class",
+      "url": "https://dfam.org/api/classes?name=CACTA",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:16.460578+00:00",
+      "status": 200,
+      "final_url": "https://dfam.org/api/classes?name=CACTA",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 224,
+      "count": 1,
+      "summary": "[{'name': 'CACTA', 'tooltip': 'A group of DNA transposons with characteristic CACTAâ\\x80¦TAGTG termini.', 'aliases': 'DTC', 'full_name': 'root;Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;CACTA'}]",
+      "seconds": 1.12,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "dfam_enspms",
+      "url": "https://dfam.org/api/families?type=DNA&subtype=En-Spm&include_raw=true&format=summary&limit=2",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:16.460634+00:00",
+      "status": 200,
+      "final_url": "https://dfam.org/api/families?type=DNA&subtype=En-Spm&include_raw=true&format=summary&limit=2",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 30,
+      "keys": [
+        "total_count",
+        "results"
+      ],
+      "summary": "{'total_count': 0, 'results': []}",
+      "seconds": 1.23,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "gramene_genes",
+      "url": "https://data.gramene.org/v69/genes?idList=AT3G52430",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:17.581573+00:00",
+      "status": 200,
+      "final_url": "https://data.gramene.org/v69/genes?idList=AT3G52430",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 24223,
+      "count": 1,
+      "summary": "[{'_id': 'AT3G52430', 'name': 'PAD4', 'description': 'alpha/beta-Hydrolases superfamily protein', 'biotype': 'protein_coding', 'taxon_id': 3702001, 'system_name': 'arabidopsis_thaliana', 'db_type': 'core', 'gene_idx': 18878, 'location': {'region': '3', 'start': 19431095, 'end': 19434450, 'strand': 1, 'map': 'GCA_000001735.1'}, 'xrefs': [{'db': 'EntrezGene', 'ids': ['824408']}, {'db': 'EntrezGene_trans_name', 'ids': ['PAD4-201']}, {'db': 'PO', 'ids': [['PO:0007098', ''], ['PO:0001054', ''], ['PO:0007611', ''], ['PO:0007616', ''], ['PO:0001078', ''], ['PO:0004507', ''], ['PO:0001081', ''], ['PO:0007064', ''], ['PO:0007095', ''], ['PO:0007103', ",
+      "seconds": 1.27,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "atlas_design",
+      "url": "https://www.ebi.ac.uk/gxa/experiments/E-MTAB-513/experiment-design",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:17.687069+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/gxa/experiments/E-MTAB-513/experiment-design",
+      "content_type": "text/html;charset=UTF-8",
+      "bytes": 27158,
+      "preview": "<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n    <meta charset=\"utf-8\">\n    <title>Experiment &lt; Expression Atlas &lt; EMBL-EBI</title>\n    <meta name=\"descriptio",
+      "seconds": 1.31,
+      "validation": "HTML页面；不计为结构化API成功"
+    },
+    {
+      "case": "scatlas_design",
+      "url": "https://www.ebi.ac.uk/gxa/sc/experiments/E-ANND-1/experiment-design",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:18.698057+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/gxa/sc/experiments/E-ANND-1/experiment-design",
+      "content_type": "text/html;charset=UTF-8",
+      "bytes": 18159,
+      "preview": "<!DOCTYPE html>\n<html lang=\"en\">\n\n<head>\n    <meta charset=\"utf-8\">\n    <title>Experiment &lt; Single Cell Expression Atlas &lt; EMBL-EBI</title>\n    <meta name",
+      "seconds": 4.86,
+      "validation": "HTML页面；不计为结构化API成功"
+    },
+    {
+      "case": "atlas_source_list",
+      "url": "https://api.github.com/repos/ebi-gene-expression-group/bioconductor-ExpressionAtlas/contents/R",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:18.847831+00:00",
+      "status": 200,
+      "final_url": "https://api.github.com/repos/ebi-gene-expression-group/bioconductor-ExpressionAtlas/contents/R",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 1026,
+      "count": 1,
+      "summary": "[{'name': 'functions.R', 'path': 'R/functions.R', 'sha': '99f7a410b5e1ee880ff5f75e7703802c7166e2a3', 'size': 46941, 'url': 'https://api.github.com/repos/ebi-gene-expression-group/bioconductor-ExpressionAtlas/contents/R/functions.R?ref=master', 'html_url': 'https://github.com/ebi-gene-expression-group/bioconductor-ExpressionAtlas/blob/master/R/functions.R', 'git_url': 'https://api.github.com/repos/ebi-gene-expression-group/bioconductor-ExpressionAtlas/git/blobs/99f7a410b5e1ee880ff5f75e7703802c7166e2a3', 'download_url': 'https://raw.githubusercontent.com/ebi-gene-expression-group/bioconductor-ExpressionAtlas/master/R/functions.R', 'type': 'file",
+      "seconds": 1.22,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "ot_associations",
+      "url": "https://api.platform.opentargets.org/api/v4/graphql",
+      "method": "POST",
+      "retrieved_at": "2026-10-18T08:26:19.001032+00:00",
+      "status": 200,
+      "final_url": "https://api.platform.opentargets.org/api/v4/graphql",
+      "content_type": "application/json",
+      "bytes": 301,
+      "keys": [
+        "data"
+      ],
+      "summary": "{'data': {'target': {'id': 'ENSG00000141510', 'approvedSymbol': 'TP53', 'associatedDiseases': {'count': 5198, 'rows': [{'disease': {'id': 'MONDO_0018875', 'name': 'Li-Fraumeni syndrome'}, 'score': 0.8763240905984302}, {'disease': {'id': 'MONDO_0007256', 'name': 'hepatocellular carcinoma'}, 'score': 0.7969946589966099}]}}}}",
+      "seconds": 1.06,
+      "request_body": {
+        "query": "query($id:String!){target(ensemblId:$id){id approvedSymbol associatedDiseases(page:{index:0,size:2}){count rows{disease{id name} score}}}}",
+        "variables": {
+          "id": "ENSG00000141510"
+        }
+      },
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "clinvar_fetch",
+      "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=clinvar&rettype=vcv&id=VCV000065533&retmode=xml",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:26:20.063824+00:00",
+      "status": 200,
+      "final_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=clinvar&rettype=vcv&id=VCV000065533&retmode=xml",
+      "content_type": "text/xml; charset=UTF-8",
+      "bytes": 21647,
+      "preview": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n                        \n<ClinVarResult-Set><VariationArchive VariationID=\"65533\" VariationName=\"NM_000081.4(LYST):c.154",
+      "seconds": 1.74,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "dfam_classification_families",
+      "url": "https://dfam.org/api/families?classification=root%3BInterspersed_Repeat%3BTransposable_Element%3BClass_II_DNA_Transposition%3BTransposase%3BCACTA&include_raw=true&format=summary&limit=2",
+      "method": "GET",
+      "status": 200,
+      "summary": {
+        "total_count": 55048,
+        "results": [
+          {
+            "accession": "DF000001399",
+            "name": "Chapaev-1_CE",
+            "version": 2,
+            "title": "Autonomous DNA transposon",
+            "description": "Chapaev-1_CE is a very young family of DNA transposons. The genome contains two identical copies of Chapaev-1_CE and two copies that are 0.5% divergent from the consensus. Chapaev-1_CE belongs to the Chapaev superfamily. Hallmarks of the Chapaev transposons are 4-bp target-site duplications, terminal inverted repeats with the conserved '5-CAC and GTG-3' termini, and the Chapaev transposase. The Chapaev transposase is characterized by the conserved D-x(60-80)-D-x(220-290)-E catalytic triad. Chapaev transposons populate genomes of different animals, including sea urchin Strongylocentrotus purpuratus, amphioxus Branchiostoma floridae, starlet sea anemone Nematostella vectensis, sea hare mollusc Aplysia californica, mosquitoes Aedes aegypti and Culex pipiens, and nematode Caenorhabditis elegans. The N-terminal portion of Chapaev transposase in Chapaev-1_ACa, Chapaev-2_ACa, Chapaev-3_ACa, Chapaev-1_BF, Chapaev-2_BF, Chapaev-1_NV, Chapaev-2_NV, Chapaev-3_NV, and Chapaev-1_SP is similar to the N-terminal portion of RAG1 (100-370 aa in the human RAG1). It includes a novel type of zinc finger, called Chapa: H-X7-C-R-X-C-G-X35-D-X4-H-X4-C-X2-C-W-Xn-C-X2-C-X8-G. In the amphioxus and anemone Chapaevs, the N-terminal portion contains also the RING finger motif. Some Chapaev transposases (e.g. Chapaev-2_ACa) show low similarity to the RAG1 core.",
+            "length": 4753,
+            "classification": "root;Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;CACTA;CMC;Chapaev_group;Chapaev",
+            "repeat_type_name": "DNA",
+            "repeat_subtype_name": "CMC-Chapaev",
+            "clades": [
+              "root;cellular organisms;Eukaryota;Opisthokonta;Metazoa;Eumetazoa;Bilateria;Protostomia;Ecdysozoa;Nematoda;Chromadorea;Rhabditida;Rhabditina;Rhabditomorpha;Rhabditoidea;Rhabditidae;Peloderinae;Caenorhabditis;Caenorhabditis elegans"
+            ]
+          },
+          {
+            "accession": "DF000001439",
+            "name": "MIRAGE1",
+            "version": 2,
+            "title": "MIRAGE1 autonomous DNA transposon",
+            "description": "MIRAGE1 is a very young autonomous DNA transposon.  It has 53-bp TIRs and encodes transposase (several exons).",
+            "length": 5625,
+            "classification": "root;Interspersed_Repeat;Transposable_Element;Class_II_DNA_Transposition;Transposase;CACTA;CMC;Mirage",
+            "repeat_type_name": "DNA",
+            "repeat_subtype_name": "CMC-Mirage",
+            "clades": [
+              "root;cellular organisms;Eukaryota;Opisthokonta;Metazoa;Eumetazoa;Bilateria;Protostomia;Ecdysozoa;Nematoda;Chromadorea;Rhabditida;Rhabditina;Rhabditomorpha;Rhabditoidea;Rhabditidae;Peloderinae;Caenorhabditis;Caenorhabditis elegans"
+            ]
+          }
+        ]
+      },
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "uniprot_search",
+      "url": "https://rest.uniprot.org/uniprotkb/search?query=%28gene_exact:TP53%29%20AND%20%28organism_id:9606%29&fields=accession,id,protein_name,gene_names,organism_id,length,reviewed&format=json&size=2",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:49.951257+00:00",
+      "status": 200,
+      "final_url": "https://rest.uniprot.org/uniprotkb/search?query=%28gene_exact:TP53%29%20AND%20%28organism_id:9606%29&fields=accession,id,protein_name,gene_names,organism_id,length,reviewed&format=json&size=2",
+      "content_type": "application/json",
+      "bytes": 1098,
+      "keys": [
+        "results"
+      ],
+      "summary": "{'results': [{'entryType': 'UniProtKB reviewed (Swiss-Prot)', 'primaryAccession': 'P04637', 'uniProtkbId': 'P53_HUMAN', 'organism': {'taxonId': 9606}, 'proteinDescription': {'recommendedName': {'fullName': {'value': 'Cellular tumor antigen p53'}}, 'alternativeNames': [{'fullName': {'value': 'Antigen NY-CO-13'}}, {'fullName': {'value': 'Phosphoprotein p53'}}, {'fullName': {'value': 'Tumor suppressor p53'}}]}, 'genes': [{'geneName': {'value': 'TP53'}, 'synonyms': [{'value': 'P53'}]}], 'sequence': {'length': 393}, 'extraAttributes': {'uniParcId': 'UPI000002ED67'}}, {'entryType': 'UniProtKB unreviewed (TrEMBL)', 'primaryAccession': 'K7PPA8', 'uni",
+      "seconds": 2.37,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "uniprot_entry",
+      "url": "https://rest.uniprot.org/uniprotkb/P04637.json",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:49.951815+00:00",
+      "status": 200,
+      "final_url": "https://rest.uniprot.org/uniprotkb/P04637.json",
+      "content_type": "application/json",
+      "bytes": 874741,
+      "keys": [
+        "entryType",
+        "primaryAccession",
+        "secondaryAccessions",
+        "uniProtkbId",
+        "entryAudit",
+        "annotationScore",
+        "organism",
+        "proteinExistence",
+        "proteinDescription",
+        "genes",
+        "comments",
+        "features",
+        "keywords",
+        "references",
+        "uniProtKBCrossReferences",
+        "sequence",
+        "extraAttributes"
+      ],
+      "summary": "{}",
+      "seconds": 3.66,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "uniprot_fasta",
+      "url": "https://rest.uniprot.org/uniprotkb/P04637.fasta",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:49.951903+00:00",
+      "status": 200,
+      "final_url": "https://rest.uniprot.org/uniprotkb/P04637.fasta",
+      "content_type": "text/plain;format=fasta",
+      "bytes": 490,
+      "preview": ">sp|P04637|P53_HUMAN Cellular tumor antigen p53 OS=Homo sapiens OX=9606 GN=TP53 PE=1 SV=4\nMEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGP\nDEAPRMPEA",
+      "seconds": 1.32,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "pdb_search",
+      "url": "https://search.rcsb.org/rcsbsearch/v2/query",
+      "method": "POST",
+      "retrieved_at": "2026-10-18T08:27:49.951958+00:00",
+      "status": 200,
+      "final_url": "https://search.rcsb.org/rcsbsearch/v2/query",
+      "content_type": "application/json",
+      "bytes": 245,
+      "keys": [
+        "query_id",
+        "result_type",
+        "total_count",
+        "result_set"
+      ],
+      "summary": "{'query_id': '22129384-290b-4184-b7b6-90c5ef5a8041', 'result_type': 'polymer_entity', 'total_count': 325, 'result_set': [{'identifier': '1A1U_1', 'score': 1.0}, {'identifier': '1AIE_1', 'score': 1.0}]}",
+      "seconds": 1.67,
+      "request_body": {
+        "query": {
+          "type": "terminal",
+          "service": "text",
+          "parameters": {
+            "attribute": "rcsb_polymer_entity_container_identifiers.reference_sequence_identifiers.database_accession",
+            "operator": "exact_match",
+            "value": "P04637"
+          }
+        },
+        "return_type": "polymer_entity",
+        "request_options": {
+          "paginate": {
+            "start": 0,
+            "rows": 2
+          },
+          "results_content_type": [
+            "experimental"
+          ]
+        }
+      },
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "pdb_data",
+      "url": "https://data.rcsb.org/graphql",
+      "method": "POST",
+      "retrieved_at": "2026-10-18T08:27:51.276731+00:00",
+      "status": 200,
+      "final_url": "https://data.rcsb.org/graphql",
+      "content_type": "application/json",
+      "bytes": 292,
+      "keys": [
+        "data"
+      ],
+      "summary": "{'data': {'entry': {'rcsb_id': '1TUP', 'exptl': [{'method': 'X-RAY DIFFRACTION'}], 'rcsb_entry_info': {'resolution_combined': [2.2]}, 'nonpolymer_entities': [{'pdbx_entity_nonpoly': {'comp_id': 'ZN', 'name': 'ZINC ION'}, 'nonpolymer_comp': {'chem_comp': {'id': 'ZN', 'name': 'ZINC ION', 'type': 'non-polymer'}}}]}}}",
+      "seconds": 0.88,
+      "request_body": {
+        "query": "{entry(entry_id:\"1TUP\"){rcsb_id exptl{method} rcsb_entry_info{resolution_combined} nonpolymer_entities{pdbx_entity_nonpoly{comp_id name} nonpolymer_comp{chem_comp{id name type}}}}}"
+      },
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "alphafold_prediction",
+      "url": "https://alphafold.ebi.ac.uk/api/prediction/P04637",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:51.618067+00:00",
+      "status": 200,
+      "final_url": "https://alphafold.ebi.ac.uk/api/prediction/P04637",
+      "content_type": "application/json",
+      "bytes": 18911,
+      "count": 9,
+      "summary": "[{'toolUsed': 'AlphaFold Monomer v2.0 pipeline', 'providerId': 'GDM', 'entityType': 'protein', 'isUniProt': True, 'modelEntityId': 'AF-P04637-F1', 'modelCreatedDate': '2025-08-01T00:00:00Z', 'sequenceVersionDate': '2009-11-24T00:00:00Z', 'globalMetricValue': 75.06, 'fractionPlddtVeryLow': 0.298, 'fractionPlddtLow': 0.104, 'fractionPlddtConfident': 0.071, 'fractionPlddtVeryHigh': 0.527, 'latestVersion': 6, 'allVersions': [1, 2, 3, 4, 5, 6], 'sequence': 'MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQH",
+      "seconds": 0.71,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "reactome_version",
+      "url": "https://reactome.org/ContentService/data/database/version",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:52.158477+00:00",
+      "status": 200,
+      "final_url": "https://reactome.org/ContentService/data/database/version",
+      "content_type": "text/plain;charset=UTF-8",
+      "bytes": 2,
+      "seconds": 2.26,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "reactome_pathway",
+      "url": "https://reactome.org/ContentService/data/query/R-HSA-1640170",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:52.323104+00:00",
+      "status": 200,
+      "final_url": "https://reactome.org/ContentService/data/query/R-HSA-1640170",
+      "content_type": "application/json;charset=UTF-8",
+      "bytes": 10663,
+      "keys": [
+        "dbId",
+        "displayName",
+        "stId",
+        "stIdVersion",
+        "isInDisease",
+        "isInferred",
+        "maxDepth",
+        "name",
+        "releaseDate",
+        "speciesName",
+        "figure",
+        "goBiologicalProcess",
+        "orthologousEvent",
+        "species",
+        "summation",
+        "reviewStatus",
+        "hasDiagram",
+        "hasEHLD",
+        "lastUpdatedDate",
+        "hasEvent"
+      ],
+      "summary": "{}",
+      "seconds": 2.1,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "interpro_protein",
+      "url": "https://www.ebi.ac.uk/interpro/api/protein/uniprot/P04637/",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:52.329120+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/interpro/api/protein/uniprot/P04637/",
+      "content_type": "application/json",
+      "bytes": 4635,
+      "keys": [
+        "metadata"
+      ],
+      "summary": "{'metadata': {'accession': 'P04637', 'id': 'P53_HUMAN', 'source_organism': {'taxId': '9606', 'scientificName': 'Homo sapiens', 'fullName': 'Homo sapiens (Human)'}, 'name': 'Cellular tumor antigen p53', 'description': ['Multifunctional transcription factor that induces cell cycle arrest, DNA repair or apoptosis upon binding to its target DNA sequence (PubMed:11025664, PubMed:12524540, PubMed:12810724, PubMed:15186775, PubMed:15340061, PubMed:17317671, PubMed:17349958, PubMed:19556538, PubMed:20673990, PubMed:20959462, PubMed:22726440, PubMed:24051492, PubMed:24652652, PubMed:35618207, PubMed:36634798, PubMed:38653238, PubMed:9840937). Acts as ",
+      "seconds": 1.31,
+      "validation": "响应可解析；业务语义范围见报告"
+    },
+    {
+      "case": "interpro_entries",
+      "url": "https://www.ebi.ac.uk/interpro/api/entry/interpro/protein/uniprot/P04637/?page_size=2",
+      "method": "GET",
+      "retrieved_at": "2026-10-18T08:27:53.615177+00:00",
+      "status": 200,
+      "final_url": "https://www.ebi.ac.uk/interpro/api/entry/interpro/protein/uniprot/P04637/?page_size=2",
+      "content_type": "application/json",
+      "bytes": 2059,
+      "keys": [
+        "count",
+        "next",
+        "previous",
+        "results"
+      ],
+      "summary": "{'count': 9, 'next': 'https://www.ebi.ac.uk/interpro/api/entry/interpro/protein/uniprot/P04637?cursor=source%7Cs%7Cipr008967&page_size=2', 'previous': None, 'results': [{'metadata': {'accession': 'IPR002117', 'name': 'p53 tumour suppressor family', 'source_database': 'interpro', 'type': 'family', 'integrated': None, 'member_databases': {'panther': {'PTHR11447': 'CELLULAR TUMOR ANTIGEN P53'}, 'prints': {'PR00386': 'P53SUPPRESSR'}}, 'go_terms': [{'identifier': 'GO:0003677', 'name': 'DNA binding', 'category': {'code': 'F', 'name': 'molecular_function'}}, {'identifier': 'GO:0003700', 'name': 'DNA-binding transcription factor activity', 'category'",
+      "seconds": 1.06,
+      "validation": "响应可解析；业务语义范围见报告"
+    }
+  ],
+  "summary": {
+    "requests": 39,
+    "http_200": 34,
+    "html_200": 2,
+    "non_200_or_transport_error": 5
+  }
+}
