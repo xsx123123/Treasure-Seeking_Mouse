@@ -668,11 +668,11 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
         {(state === "reveal" || state === "stow") && gemCount !== null ? (
           <span className={`absolute -right-1 -top-3 flex h-9 w-9 items-center justify-center rounded-full bg-pet-gold-soft ring-2 ring-pet-amber/50 ${state === "stow" ? "pet-gem-stow" : "pet-gem"}`}>
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
-              <path d="M6 3h12l4 6-10 12L2 9z" fill="#D97706" stroke="#B45309" strokeWidth="1" strokeLinejoin="round" />
-              <path d="M2 9h20M9 3l-3 6 6 12M15 3l3 6-6 12" fill="none" stroke="#FEF3C7" strokeWidth="0.9" />
+              <path d="M6 3h12l4 6-10 12L2 9z" className="fill-pet-amber stroke-pet-amber-deep" strokeWidth="1" strokeLinejoin="round" />
+              <path d="M2 9h20M9 3l-3 6 6 12M15 3l3 6-6 12" className="stroke-pet-gold-soft" fill="none" strokeWidth="0.9" />
             </svg>
             {gemCount > 1 ? (
-              <span className="absolute -right-1 -bottom-1 rounded-full bg-pet-amber-deep px-1 font-mono text-[9px] text-white">×{gemCount}</span>
+              <span className="absolute -right-1 -bottom-1 rounded-full bg-pet-amber-deep px-1 font-mono text-[9px] text-pet-amber-deep-foreground">×{gemCount}</span>
             ) : null}
           </span>
         ) : null}
@@ -691,7 +691,7 @@ export function TreasureMouse({ event, welcome = false }: { event: PetEvent | nu
         >
           <img key={chestPopKey} src={IMG_CHEST} alt={t("pet.chest")} draggable={false} className={`pointer-events-none block h-full w-full drop-shadow-[0_3px_5px_rgb(0_0_0/0.15)] ${chestPopKey > 0 ? "pet-chest-pop" : ""}`} />
           {treasure > 0 ? (
-            <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-pet-amber-deep px-1 text-center font-mono text-[9px] leading-[17px] text-white shadow-sm">{treasure > 99 ? "99+" : treasure}</span>
+            <span className="absolute -right-2 -top-2 min-w-[17px] rounded-full bg-pet-amber-deep px-1 text-center font-mono text-[9px] leading-[17px] text-pet-amber-deep-foreground shadow-sm">{treasure > 99 ? "99+" : treasure}</span>
           ) : null}
         </button>
         {earned.map((a, i) => (

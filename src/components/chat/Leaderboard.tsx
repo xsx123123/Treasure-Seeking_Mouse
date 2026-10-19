@@ -391,7 +391,7 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
                 type="button"
                 disabled={nickSaving}
                 onClick={() => void saveNickname()}
-                className="flex items-center gap-1.5 rounded-lg bg-helix px-3.5 py-1.5 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-lg bg-helix px-3.5 py-1.5 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 {nickSaving ? <Loader2 size={13} className="animate-spin" /> : null}
                 {t("board.save")}
