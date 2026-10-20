@@ -170,7 +170,7 @@ export function ChatMessage({
           </div>
         ) : null}
         {!msg.streaming && msg.cards && msg.cards.length > 0 ? (
-          <DatasetCardGrid cards={msg.cards} hostMessageId={msg.id} />
+          <DatasetCardGrid cards={msg.cards} hostMessageId={msg.id} onViewSteps={onPickSuggestion} />
         ) : null}
         {!msg.streaming && msg.grounding && msg.grounding.unconfirmed.length > 0 ? (
           <GroundingNotice unconfirmed={msg.grounding.unconfirmed} />

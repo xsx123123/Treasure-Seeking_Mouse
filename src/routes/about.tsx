@@ -8,6 +8,7 @@ import {
   Database,
   Dna,
   ExternalLink,
+  FlaskConical,
   Github,
   Hammer,
   Languages,
@@ -34,10 +35,11 @@ export const Route = createFileRoute("/about")({
 const REPO = "https://github.com/xsx123123/Treasure-Seeking_Mouse";
 const ONLINE_DEMO = "https://render.qmuse.pub/p/muse/2842191818002612/index.html";
 
-// 6 个核心亮点：图标固定，标题/描述按语言取词（与 README「功能一览」逐条对齐）
+// 核心亮点：图标固定，标题/描述按语言取词（与 README「功能一览」逐条对齐）
 const HIGHLIGHTS = [
   { icon: Database, titleKey: "about.h.1.title", descKey: "about.h.1.desc" },
   { icon: Dna, titleKey: "about.h.7.title", descKey: "about.h.7.desc" },
+  { icon: FlaskConical, titleKey: "about.h.8.title", descKey: "about.h.8.desc" },
   { icon: Link2, titleKey: "about.h.2.title", descKey: "about.h.2.desc" },
   { icon: Trophy, titleKey: "about.h.3.title", descKey: "about.h.3.desc" },
   { icon: BarChart3, titleKey: "about.h.4.title", descKey: "about.h.4.desc" },
@@ -163,6 +165,13 @@ function AboutPage(): React.ReactElement {
               </span>
             ))}
           </div>
+          <p className="mt-4 text-cap font-medium text-foreground/80">{t("about.protocolSources")}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className="rounded-full border border-helix/25 bg-helix-soft/50 px-2.5 py-1 font-mono text-xs text-helix">
+              protocols.io
+            </span>
+          </div>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.protocolNote")}</p>
         </section>
 
         {/* 证据链（与 README「Evidence Chain」一节对齐） */}

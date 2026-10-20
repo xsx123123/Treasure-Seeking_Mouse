@@ -174,12 +174,12 @@ test('parseResearchIntent: targets 必须是非空已知目标数组', () => {
   const all = parseResearchIntent({ ...base, targets: ['geo', 'geo', 'sra', 'ngdc'], needs_literature: false });
   assert.ok(all.ok);
   if (all.ok) assert.deepEqual(all.intent.targets, ['geo', 'sra', 'ngdc']);
-  assert.deepEqual([...INTENT_TARGETS], ['geo', 'sra', 'ena', 'ngdc', 'literature', 'gene', 'variant']);
+  assert.deepEqual([...INTENT_TARGETS], ['geo', 'sra', 'ena', 'ngdc', 'literature', 'gene', 'variant', 'protocol']);
   // gene/variant 为合法目标（枚举只增不改：旧值行为不变，新值通过）
   const gv = parseResearchIntent({ ...base, targets: ['gene', 'variant', 'gene'] });
   assert.ok(gv.ok);
   if (gv.ok) assert.deepEqual(gv.intent.targets, ['gene', 'variant']);
-  // 校验失败 reason 文案含全部 7 个合法取值（动态生成，不再漏 ena）
+  // 校验失败 reason 文案含全部 8 个合法取值（动态生成，不再漏 ena）
   const bad = parseResearchIntent({ ...base, targets: ['pubmed'] });
   assert.ok(!bad.ok);
   if (!bad.ok) {
@@ -256,4 +256,41 @@ test('parseResearchIntent: tissue_or_celltype / condition 自由文本透传（t
     assert.equal(r.intent.filters.tissue_or_celltype, 'CD8+ T 细胞');
     assert.equal(r.intent.filters.condition, '非小细胞肺癌');
   }
+});
+// ---------- protocol 目标扩展（protocols.io 接入，只增不改） ----------
+
+test('parseResearchIntent: targets 含 protocol 校验通过并原样回灌（可与其他目标混排）', () => {
+  // 新枚举注册：INTENT_TARGETS 追加 'protocol'（includes 校验天然接受，零逻辑改动）
+  assert.ok((INTENT_TARGETS as readonly string[]).includes('protocol'));
+  // 单目标 + 复合目标（方案+文献）均通过校验，目标数组原样保留（不重排、不丢弃）
+  const single = parseResearchIntent({ question: '找 RNA 提取的实验方案', targets: ['protocol'], needs_literature: false });
+  assert.ok(single.ok);
+  if (single.ok) {
+    assert.deepEqual(single.intent.targets, ['protocol']);
+    assert.equal(single.intent.needs_literature, false);
+  }
+  const compound = parseResearchIntent({ question: 'qPCR 实验方案及相关文献', targets: ['protocol', 'literature'], needs_literature: true });
+  assert.ok(compound.ok);
+  if (compound.ok) assert.deepEqual(compound.intent.targets, ['protocol', 'literature']);
+});
+
+test('parseResearchIntent: 旧版意图数据（无 protocol 枚举）解析行为不变', () => {
+  // 旧会话落盘的意图不含新枚举——校验与归一化结果与扩展前完全一致（兼容红线）
+  const legacy = parseResearchIntent({
+    question: '小鼠肝巨噬细胞测序数据',
+    targets: ['geo', 'sra'],
+    filters: { organism: '小鼠', assay: '转录组' },
+    needs_literature: true,
+  });
+  assert.ok(legacy.ok);
+  if (legacy.ok) {
+    assert.deepEqual(legacy.intent.targets, ['geo', 'sra']);
+    assert.equal(legacy.intent.filters.organism, 'Mus musculus');
+    assert.equal(legacy.intent.filters.assay, 'RNA-Seq');
+    assert.equal(legacy.intent.needs_literature, true);
+    assert.ok(!legacy.notes.some((n) => n.includes('protocol')), '旧数据不产生 protocol 相关 note');
+  }
+  // 未知目标值（含拼写错误）仍判负——扩展不放松校验
+  const bad = parseResearchIntent({ question: 'q', targets: ['protocols'], needs_literature: false });
+  assert.ok(!bad.ok, 'protocols（复数拼写）不是合法枚举，仍拒绝');
 });

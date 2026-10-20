@@ -22,6 +22,7 @@
 | 领域 | 位置 | 关键文件 | 备注 |
 |---|---|---|---|
 | 对话编排后端 | `functions/seqout-chat/index.ts` | TOOL_DEFS / executeTool / tool 循环 / resolveStudy / 用量统计；SYSTEM_PROMPT 从 `prompts.generated.ts` 导入 | 平台可移植（Deno/Node），禁 Node-only API |
+| protocols.io 实验方案工具 | `functions/seqout-chat/protocols/` | types / client（ProtocolsError + 短时缓存 + 退避）/ search / detail（含 get_steps）/ index（单点出口 + 卡片投影） | 3 工具（总数 43）；注册门 `PROTOCOLS_IO_ENABLED`+Token 双保险；对齐 biomed 六项导出契约，禁反向 import 主文件 |
 | 对话提示词 | `functions/seqout-chat/prompts/system-{zh,en}.md` | **唯一可编辑来源**（中英双份平行，改一条必须两份同步） | 改完跑 `npm run sync:prompts` 重新生成 `prompts.generated.ts`；`tests/prompts-sync.test.ts` 守漂移，禁手改生成文件 |
 | 自托管服务壳 | `server/` | `local.mjs`（端口/CORS/统计落盘）、`account-api.mjs`（账号/历史/榜单） | DATA_DIR 卷持久化 |
 | 前端入口编排 | `src/routes/index.tsx` | handleSend / 会话切换 / effUser 分支 / petEvent 转发 | 748 行，改动前先通读相关段 |
@@ -41,6 +42,8 @@
 3. `labelOf`（中文标签）补名；
 4. 若动了 `resolveStudy`/`studyCandidates`/`hasRuns`/`describeSeqoutError`：**必须** `npm test` + `npm run test:live` 全绿（黄金用例在 `tests/resolveStudy.test.ts`）；
 5. QMuse 副本已停维护，**不要**同步。
+
+新增**独立数据域**工具（biomed / protocols 模式）：领域代码全部进 `functions/seqout-chat/<域>/`（六项导出契约：`*_TOOL_DEFS` / `*_TOOL_NAMES` / `execute<域>Tool` / `*_TOOL_LABELS` / `extract<域>Cards` / `is<域>Tool`，带注册门的再加 `*Registered()`）；主文件只做三处接线（import + TOOL_DEFS 条件展开 + executeTool/extractCards/labelOf 委托），模块**禁反向 import 主文件**（ES 循环依赖红线）。提示词双语文本加路由条目 + `intent.ts` targets 枚举同步。测试进 `functions/seqout-chat/tests/<域>.test.ts`：mockFetch 按路径路由 + `set<域>Env` 切环境 + fixtures gzip 离线全绿，联网验收走独立 `*_LIVE=1` 环境开关（429/上游瞬态 skip 不算失败）。
 
 ### 2.2 新增界面文案
 1. zh 加键 → en 同步加同义键；2. 组件里 `t("key")`（service 层用 `translate(readLang(), …)`）；

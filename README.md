@@ -12,7 +12,7 @@
   </p>
 </div>
 
-Research Treasure Mouse is a chat-based research assistant for finding public omics datasets, research literature, gene annotations, human variant annotations and clinical variant evidence. Ask a question in natural language; the backend selects the appropriate read-only tool, queries the source API, and returns a concise answer with structured dataset, gene, variant or paper cards. Literature searches can run across multiple indexes and are automatically connected to related GEO identifiers, studies and papers when the evidence supports that link.
+Research Treasure Mouse is a chat-based research assistant for finding public omics datasets, research literature, gene annotations, human variant annotations, clinical variant evidence and public experimental protocols. Ask a question in natural language; the backend selects the appropriate read-only tool, queries the source API, and returns a concise answer with structured dataset, gene, variant, protocol or paper cards. Literature searches can run across multiple indexes and are automatically connected to related GEO identifiers, studies and papers when the evidence supports that link.
 
 The project is designed for self-hosting. Any OpenAI-compatible model gateway can be used, and the frontend can run as a guest without Supabase. The Chinese product name is **科研寻宝鼠**; its desk pet is called **A-Xun** (阿寻).
 
@@ -48,6 +48,10 @@ The `literature_search` tool supports nine sources:
 - bioRxiv
 - medRxiv
 
+### Experimental protocols
+
+Optional protocol discovery through the [protocols.io](https://www.protocols.io) public API: search public experimental protocols by method keyword, then fetch protocol details (authors, warnings, materials overview) and full step lists with materials via numeric ID, URI or DOI. The integration is disabled by default and enabled by configuring a server-side access token; peer-review status is shown per protocol as a three-state badge (reviewed / not reviewed / unknown) without implying experimental validation.
+
 `source=all` queries all nine sources in parallel, then de-duplicates records by DOI, PMID or title. A single source can be selected when a query needs a specific index. Google Scholar is exposed only as an outbound search link; it is not scraped or used as an API backend.
 
 ## Evidence Chain
@@ -67,6 +71,7 @@ The active literature search returns normalized paper cards, while the evidence-
 - Dataset cards and normalized paper cards with source links
 - GSE/GSM/GO/PMID links that open metadata or literature evidence
 - Nine-source literature search: PubMed, Europe PMC, Crossref, OpenAlex, Semantic Scholar, CORE, arXiv, bioRxiv and medRxiv
+- Protocol discovery from protocols.io: method keyword search, protocol details and full step/material lists with three-state peer-review badges (optional integration, disabled by default)
 - Automatic literature-to-GEO alignment for evidence discovery
 - Gene, variant and clinical evidence cards: MyGene identifier mapping, MyVariant annotations with hg19/hg38 assembly choice, ClinVar classifications and submitter conflicts
 - Guest mode with local sessions; optional Supabase or self-hosted accounts
@@ -129,6 +134,17 @@ CORE_API_KEY=your_core_api_key
 ```
 
 PubMed and Europe PMC can work without keys. `NCBI_EMAIL` is recommended, while `NCBI_API_KEY` is useful for higher request volume. Crossref, OpenAlex, arXiv, bioRxiv and medRxiv support public basic access; contact email improves rate-limit handling where supported. Semantic Scholar works without a key at lower limits. CORE requires `CORE_API_KEY` for its API.
+
+## Protocol API Configuration
+
+Protocol discovery is optional and disabled by default. Enable it with a server-side token from <https://www.protocols.io/developers> (client access token, public content only):
+
+```env
+PROTOCOLS_IO_ENABLED=true
+PROTOCOLS_IO_CLIENT_ACCESS_TOKEN=your_protocols_io_token
+```
+
+The token stays server-side only (same rule as literature credentials: never in frontend code or committed `.env`). Without it the three protocol tools are not registered at all, and the tool list stays unchanged.
 
 ## Architecture
 
@@ -201,4 +217,4 @@ npx vite build
 
 ## License and Credits
 
-The project is developed by JZHANG and uses the seqout public data service, NGDC public APIs and OpenAI-compatible model gateways. See the repository license for redistribution terms.
+The project is developed by JZHANG and uses the seqout public data service, NGDC public APIs, the protocols.io public API and OpenAI-compatible model gateways. See the repository license for redistribution terms.

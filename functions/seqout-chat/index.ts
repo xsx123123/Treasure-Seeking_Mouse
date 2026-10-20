@@ -10,6 +10,7 @@ import { SYSTEM_PROMPT, SYSTEM_PROMPT_EN } from './prompts.generated.ts';
 import { INTENT_TARGETS, parseResearchIntent, type ResearchIntent } from './intent.ts';
 import { platformToolAdapter } from './platform-tools.ts';
 import { BIOMED_TOOL_DEFS, BIOMED_TOOL_LABELS, executeBiomedTool, extractBiomedCards, isBiomedTool } from './biomed/index.ts';
+import { PROTOCOLS_TOOL_DEFS, PROTOCOLS_TOOL_LABELS, executeProtocolsTool, extractProtocolsCards, isProtocolsTool, protocolsIntegrationStatus, protocolsRegistered } from './protocols/index.ts';
 import { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams } from './shared.ts';
 export { SYSTEM_PROMPT, SYSTEM_PROMPT_EN };
 // 共享基础设施已平移至 shared.ts（biomed/ 模块与主函数共用，避免循环依赖）；
@@ -28,6 +29,9 @@ export { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams, fetch
 //   OPENALEX_MAILTO / OPENALEX_API_KEY 可选：OpenAlex 联系邮箱 / key
 //   SEMANTIC_SCHOLAR_API_KEY 可选：Semantic Scholar API key
 //   CHAT_SHARED_SECRET 可选：配置后对话接口要求 X-Chat-Key 匹配；未配置则对话接口无鉴权（启动时会打印警告）
+//   PROTOCOLS_IO_ENABLED 可选：protocols.io 实验方案工具注册开关（默认 false，零新增工具）
+//   PROTOCOLS_IO_CLIENT_ACCESS_TOKEN 可选：protocols.io 访问令牌（开关开启时必配，仅服务端读取）
+//   PROTOCOLS_IO_API_BASE_URL / PROTOCOLS_IO_TIMEOUT_MS / PROTOCOLS_CACHE_TTL_SEC 可选覆盖
 const LLM_BASE_URL = envGet('LLM_BASE_URL') || 'https://api.meoo.host/meoo-ai/compatible-mode/v1';
 const SEQOUT_BASE_URL = envGet('SEQOUT_BASE_URL') || 'https://seqout.org/api';
 const NGDC_BASE_URL = envGet('NGDC_BASE_URL') || 'https://ngdc.cncb.ac.cn';
@@ -44,6 +48,21 @@ if (!envGet('CHAT_SHARED_SECRET')) {
     `任何能访问该端点的调用者都可直接消耗 LLM 额度。自托管/公网部署请务必配置 ` +
     `CHAT_SHARED_SECRET，并让前端请求携带 X-Chat-Key 头。`,
   );
+}
+
+// protocols.io 实验方案集成状态一行（对齐上方 warn 先例）：token_missing 态提示部署者补令牌，
+// disabled（默认关闭）静默 info——不暴露 Token 任何信息。
+{
+  const protocolsStatus = protocolsIntegrationStatus();
+  if (protocolsStatus === 'token_missing') {
+    console.warn(
+      `[${FUNCTION_NAME}] ⚠️ PROTOCOLS_IO_ENABLED 已开启但未配置 PROTOCOLS_IO_CLIENT_ACCESS_TOKEN：` +
+      `实验方案工具不会注册（/stats 显示 token_missing）。请在 protocols.io 开发者平台 ` +
+      `申请访问令牌后配置，或改回 PROTOCOLS_IO_ENABLED=false。`,
+    );
+  } else {
+    console.info(`[${FUNCTION_NAME}] protocols.io 实验方案集成：${protocolsStatus === 'enabled' ? '已启用' : '未启用（默认关闭）'}`);
+  }
 }
 
 
@@ -193,12 +212,13 @@ function strEnum(values: string[]) {
   return { type: 'string', enum: values };
 }
 
-const TOOL_DEFS = [
+// 导出供 tests 断言工具清单零新增（P0 关卡：未配置 protocols.io 时与基线逐项一致）
+export const TOOL_DEFS = [
   // 意图规划：不触达外部 API。模型在首次检索前把用户需求结构化为 ResearchIntent，
   // 函数内校验归一化（见 intent.ts）后落 tool_logs 审计、并把归一化 IR 回灌模型引导后续工具参数。
   tool('intent_plan', '检索意图规划（不执行检索）：在首次检索调用前，把用户需求结构化为意图。平台会校验并归一化（中文物种名→二名法学名、assay 别名→library_strategy 词表值），返回的归一化意图是后续检索工具参数的依据。可与首个检索工具同一轮并行调用。', {
     question: reqStr('用户研究问题的一句话概括'),
-    targets: { type: 'array', items: strEnum([...INTENT_TARGETS]), description: '目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=公共文献，gene=基因注释，variant=变异与临床证据' },
+    targets: { type: 'array', items: strEnum([...INTENT_TARGETS]), description: '目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=公共文献，gene=基因注释，variant=变异与临床证据，protocol=实验方案' },
     filters: { type: 'object', nullable: true, description: '可选过滤条件，无则省略整个字段', properties: { organism: strOpt('物种，中文名或学名均可，平台归一化为二名法学名'), assay: strOpt('实验/测序类型，中英文别名均可，平台归一化为 library_strategy 词表值'), tissue_or_celltype: strOpt('组织或细胞类型'), condition: strOpt('疾病或处理条件'), has_control: { type: 'boolean', nullable: true, description: '是否要求含对照组' }, assembly: strOpt('基因组版本（变异检索用），如 hg19/hg38/GRCh37/GRCh38，平台归一化为 hg19 或 hg38') } },
     needs_literature: { type: 'boolean', description: '是否需要同时检索公共文献' },
   }, ['question', 'targets', 'needs_literature']),
@@ -250,6 +270,9 @@ const TOOL_DEFS = [
   tool('ngdc_get_gsa_mirror', '通过 seqout 检索 SRA/GEO 编号对应的 GSA 国内镜像。找不到时如实返回无镜像。', { accession: reqStr('SRP、SRR、PRJNA 或 GSE 编号') }, ['accession']),
   // 基因中心工具（MyGene / MyVariant / ClinVar，见 biomed/）：schema 与执行全部由 biomed 模块提供
   ...BIOMED_TOOL_DEFS,
+  // protocols.io 实验方案工具（见 protocols/）：注册门（开关+Token 均就绪）开启才进清单；
+  // 未配置时工具面与现状逐项一致（spec 4.2.3 P0 零新增红线）
+  ...(protocolsRegistered() ? PROTOCOLS_TOOL_DEFS : []),
 ];
 export const NGDC_TOOL_NAMES = ['ngdc_get_gwh_assembly', 'ngdc_get_gwh_project', 'ngdc_get_gwh_sample', 'ngdc_get_genbase_sequence', 'ngdc_get_gsa_mirror'] as const;
 
@@ -560,6 +583,8 @@ function q(args: Record<string, Json | undefined>, key: string): string | undefi
 export async function executeTool(name: string, args: Record<string, Json | undefined>): Promise<Json> {
   // 基因中心工具（MyGene / MyVariant / ClinVar）单点拦截，交给 biomed 模块统一管道执行
   if (isBiomedTool(name)) return executeBiomedTool(name, args);
+  // protocols.io 实验方案工具单点拦截，交给 protocols 模块统一管道执行（未配置 Token 时抛清晰错误）
+  if (isProtocolsTool(name)) return executeProtocolsTool(name, args);
   switch (name) {
     // 检索/项目类工具带 NCBI 兜底：seqout 镜像 404（新项目未同步）/5xx 时直连 NCBI E-utilities，
     // 兜底失败或限流时抛原始 seqout 错误；其余错误（格式校验等）不兜底直接抛。
@@ -1466,6 +1491,8 @@ export function trimForLLM(payload: Json): string {
 function extractCards(name: string, payload: Json): Json[] {
   // 基因/变异/临床卡片由 biomed 模块投影（meta.source = gene/variant/clinvar）
   if (isBiomedTool(name)) return extractBiomedCards(name, payload);
+  // 实验方案卡片由 protocols 模块投影（meta.source = protocol）
+  if (isProtocolsTool(name)) return extractProtocolsCards(name, payload);
   try {
     const data = (payload as { data?: unknown }).data;
     if (!data || typeof data !== 'object') return [];
@@ -1789,7 +1816,9 @@ export const handler = async (req: Request): Promise<Response> => {
     // GET <endpoint>/stats：使用统计面板（本地聚合数据，不需要 AI 凭证）
     // 注意必须在模型目录分支之前——目录分支会把一切 GET 当 /models 处理
     if (req.method === 'GET' && new URL(req.url).pathname.endsWith('/stats')) {
-      return new Response(JSON.stringify(getUsageStatsSnapshot()), {
+      // integrations.protocols_io 三态（disabled/token_missing/enabled）：部署者配置可见性，
+      // 仅状态枚举，不含 Token 值/长度/前缀任何信息（spec 5.2.1 规则 4）
+      return new Response(JSON.stringify({ ...getUsageStatsSnapshot(), integrations: { protocols_io: protocolsIntegrationStatus() } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
       });
@@ -2143,5 +2172,5 @@ function labelOf(name: string): string {
     ngdc_get_genbase_sequence: '查询 NGDC GenBase 序列',
     ngdc_get_gsa_mirror: '查询 GSA 国内镜像',
   };
-  return { ...BIOMED_TOOL_LABELS, ...map }[name] || name;
+  return { ...BIOMED_TOOL_LABELS, ...PROTOCOLS_TOOL_LABELS, ...map }[name] || name;
 }

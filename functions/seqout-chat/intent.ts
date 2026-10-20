@@ -6,8 +6,8 @@
 // 归一化结果回灌模型作为后续工具参数的依据；校验失败由调用方识别（判别联合 ok:false）并降级为
 // 现有工具直连行为，绝不猜值。
 
-/** 意图目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=文献，gene=基因注释，variant=变异与临床证据 */
-export const INTENT_TARGETS = ['geo', 'sra', 'ena', 'ngdc', 'literature', 'gene', 'variant'] as const;
+/** 意图目标库：geo=GEO 数据集，sra=SRA 测序记录，ena=ENA 欧洲核酸库，ngdc=NGDC 国内库，literature=文献，gene=基因注释，variant=变异与临床证据，protocol=实验方案（protocols.io） */
+export const INTENT_TARGETS = ['geo', 'sra', 'ena', 'ngdc', 'literature', 'gene', 'variant', 'protocol'] as const;
 export type IntentTarget = (typeof INTENT_TARGETS)[number];
 
 export interface ResearchIntentFilters {

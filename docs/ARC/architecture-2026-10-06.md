@@ -92,6 +92,7 @@ browser ──→ web(nginx:80) ──┬─ /           → 前端静态产物�
 
 | 日期 | 变更 | 要点 |
 |---|---|---|
+| 10-20 | protocols.io 实验方案发现 | 新增 `protocols_search` / `protocols_get_details` / `protocols_get_steps` 三工具（40→43，`functions/seqout-chat/protocols/` 五文件模块化，注册门双保险）；前端 `ProtocolCard`（三态评审徽章 + 版本 + 时间三分）、「查看步骤与材料」走 handleSend 预置提问通道、详情 Dialog 对齐 LiteratureDetailDialog、has_warning 走 pet-amber 警告段；离线 23 用例矩阵 + `PROTOCOLS_LIVE` 联网开关；Token 未配置走降级路径 A（默认关闭构成安全发布态），实测基线与待验证项见 `.codeartsdoer/specs/protocols_io/verification.md` |
 | 10-06 | 自托管账号体系 | Account API + localAuth + AuthDialog 离线分支；登录合并历史、游客成绩并入账号榜；顶栏 guest 徽标移除，登录入口文案改为「登录 / 注册」+「不登录，先试试」 |
 | 10-06 | 设置面板行式重做 | 体型步进百分比（72–240 连续值）、从桌面收起/闲置活动开关、位置复位通道（petBus resetPos） |
 | 10-06 | 工具空矿口径 | GEO-only 项目 metadata 404 / 空表头统一转成功空态（`data.empty`），统计新增 `empties` 与真错误分列；`resolve_prj` 前置 PRJ 格式校验挡 422 原始报文 |

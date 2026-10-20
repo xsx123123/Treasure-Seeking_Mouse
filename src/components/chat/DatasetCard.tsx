@@ -6,6 +6,7 @@ import { requestEvidence } from "@/lib/evidenceBus";
 import { usePresentation } from "@/presentation-context";
 import { useI18n } from "@/i18n/provider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ProtocolResultCard } from "@/components/chat/ProtocolCard";
 
 const NCBI_BASE: Record<string, string> = {
   GSE: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=",
@@ -100,13 +101,14 @@ function onLiterature(accession: string, hostMessageId?: string): void {
   if (kind) requestEvidence({ kind, id: accession.toUpperCase(), hostMessageId });
 }
 
-export function DatasetCardView({ card, hostMessageId }: { card: CardData; hostMessageId?: string }): React.ReactElement {
+export function DatasetCardView({ card, hostMessageId, onViewSteps }: { card: CardData; hostMessageId?: string; onViewSteps?: (q: string) => void }): React.ReactElement {
   const { t } = useI18n();
   const presentation = usePresentation();
   if (card.meta?.source === "literature") return <LiteratureResultCard card={card} />;
   if (card.meta?.source === "gene") return <GeneResultCard card={card} />;
   if (card.meta?.source === "variant") return <VariantResultCard card={card} />;
   if (card.meta?.source === "clinvar") return <ClinVarResultCard card={card} />;
+  if (card.meta?.source === "protocol") return <ProtocolResultCard card={card} onViewSteps={onViewSteps} />;
   const link = buildLink(card.accession);
   const prefix = prefixOf(card.accession);
   const controlled = /^HRA\d+$/i.test(card.accession) || card.meta?.controlled === "true";
@@ -371,12 +373,12 @@ function ClinVarResultCard({ card }: { card: CardData }): React.ReactElement {
   );
 }
 
-export function DatasetCardGrid({ cards, hostMessageId }: { cards: CardData[]; hostMessageId?: string }): React.ReactElement | null {
+export function DatasetCardGrid({ cards, hostMessageId, onViewSteps }: { cards: CardData[]; hostMessageId?: string; onViewSteps?: (q: string) => void }): React.ReactElement | null {
   if (!cards || cards.length === 0) return null;
   return (
     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((c, i) => (
-        <DatasetCardView key={`${c.accession}-${i}`} card={c} hostMessageId={hostMessageId} />
+        <DatasetCardView key={`${c.accession}-${i}`} card={c} hostMessageId={hostMessageId} onViewSteps={onViewSteps} />
       ))}
     </div>
   );
