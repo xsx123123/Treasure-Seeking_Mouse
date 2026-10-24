@@ -3,7 +3,7 @@ import { usePresentation } from '@/presentation-context';
 // 连击转圈、爱心飘浮、闲置散步张望、宝箱累计计数、里程碑成就庆祝，可拖拽、右键静默。
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Settings, X } from "lucide-react";
-import { readPetPos, writePetPos, readPetQuiet, writePetQuiet, readPetSize, readPetAlways, readPetIdleAlive, bumpPokeCount, readTreasureCount, addTreasure, ACHIEVEMENTS, claimAchievement, earnedAchievements, type Achievement, type PetPos } from "@/services/petStore";
+import { readPetPos, writePetPos, readPetQuiet, writePetQuiet, readPetSize, readPetAlways, readPetIdleAlive, bumpPokeCount, readTreasureCount, ACHIEVEMENTS, claimAchievement, earnedAchievements, type Achievement, type PetPos } from "@/services/petStore";
 import { onPetSettingsChanged, onPetRecall, onPetQuiet, onPetResetPos, onPetTyping, emitPetSettingsChanged } from "@/lib/petBus";
 import { PetSettingsPanel } from "@/components/pet/PetSettingsPanel";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -346,7 +346,7 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
     }, 4300);
   }, []);
 
-  /** cards/done 事件里累加宝藏后检测跨过的里程碑（同批只庆祝最高一档） */
+  /** 对话统一结算后检测跨过的里程碑（同批只庆祝最高一档） */
   const checkMilestones = useCallback((total: number) => {
     const newly = ACHIEVEMENTS.filter((a) => total >= a.threshold && claimAchievement(a.threshold));
     if (newly.length > 0) {
@@ -357,34 +357,28 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
     return false;
   }, [celebrate]);
 
-  /** 出货小剧场：宝石飞入宝箱；若跨过成就里程碑则由庆祝演出接管。
-   *  counted=true 表示本轮 cards 事件已累加过，done 只演动画不重复计数 */
-  const countedRef = useRef(false);
-  const revealStow = useCallback(
-    (count: number, line: string, ms: number, counted: boolean): void => {
-      if (!counted) {
-        const total = addTreasure(count);
-        setTreasure(total);
-        setChestPopKey((k) => k + 1);
-        if (checkMilestones(total)) return;
-      }
-      transient("reveal", line, ms, () => {
-        setState("stow");
-        stateTimer.current = setTimeout(() => {
-          setState("idle");
-          setBubble(null);
-          setGemCount(null);
-        }, 600);
-      });
-    },
-    [checkMilestones, transient],
-  );
+  // Animation only: the conversation finalizer owns treasure accounting.
+  const revealStow = useCallback((count: number, line: string, ms: number): void => {
+    transient("reveal", line, ms, () => {
+      setState("stow");
+      stateTimer.current = setTimeout(() => { setState("idle"); setBubble(null); setGemCount(null); }, 600);
+    });
+  }, [transient]);
 
   // 响应外部流式事件
   useEffect(() => {
-    if (!event || quiet) return;
+    if (!event) return;
     if (event.seq <= lastSeq.current) return;
     lastSeq.current = event.seq;
+    if (event.type === "done") {
+      const total = readTreasureCount(); setTreasure(total);
+      if (quiet) {
+        for (const a of ACHIEVEMENTS) if (total >= a.threshold) claimAchievement(a.threshold);
+        setEarned(earnedAchievements(total)); return;
+      }
+      if (checkMilestones(total)) return;
+    }
+    if (quiet) return;
     lastAct.current = Date.now();
     setHidden(false); // 「一直存在」关闭时，有互动就回来
     if (state === "sleep") { // 有动静就醒
@@ -394,7 +388,6 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
     switch (event.type) {
       case "tool_start":
         setGemCount(null);
-        countedRef.current = false;
         transient("digging", pick(L.dig), 10_000); // 兜底超时回 idle；done/error 会提前打断
         break;
       case "lit_start": {
@@ -403,30 +396,23 @@ export function TreasureMouse({ event, welcome = false, welcomeSessionKey }: { e
         const variant = pick(READ_VARIANTS);
         setReadImg(variant.img);
         setGemCount(null);
-        countedRef.current = false;
         transient("read", pick(variant.lines(L)), 10_000);
         break;
       }
       case "lit_cards": {
         // 文献出土：闪耀发现造型；宝藏计数与里程碑逻辑和组学卡片一致
-        countedRef.current = true;
-        const total = addTreasure(event.count);
-        setTreasure(total);
-        setChestPopKey((k) => k + 1);
-        if (checkMilestones(total)) break;
         transient("litfound", pick(L.litFound), 2400);
         break;
       }
       case "cards": {
         setGemCount(event.count);
-        countedRef.current = true;
-        revealStow(event.count, t("pet.foundData", { n: event.count }), 1800, false);
+        revealStow(event.count, t("pet.foundData", { n: event.count }), 1800);
         break;
       }
       case "done":
         if (event.cards > 0 && state !== "reveal" && state !== "stow" && state !== "celebrate" && state !== "litfound") {
           setGemCount(event.cards);
-          revealStow(event.cards, t("pet.worthIt"), 1600, countedRef.current);
+          revealStow(event.cards, t("pet.worthIt"), 1600);
         } else if (event.cards === 0) {
           transient("miss", pick(L.miss), 2400);
         }

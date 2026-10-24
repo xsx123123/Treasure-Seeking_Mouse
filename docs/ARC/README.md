@@ -1,6 +1,8 @@
 # ARC · Agent 开发参考手册
 
 > 本文件夹是给 AI agent / 新开发者准备的**深度参考**，目标：接到任务后 5 分钟内定位改哪里、怎么改、怎么验。
+> 当前代码盘点先读 [2026-10-19 框架盘点](architecture-review-2026-10-19.md)：运行拓扑、40 个静态工具、存储模式、已知契约问题与收敛顺序。
+> 五项可靠性问题的具体修复、迁移与验收方案见 [2026-10-20 优化实施方案](reliability-optimization-plan-2026-10-20.md)；代码实现与已验证范围见 [实施与验证记录](reliability-fixes-2026-10-20.md)。
 > 运行时契约看仓库根 `AGENTS.md`（必读，含踩坑记录与回归测试红线）；本文件夹是它的"地图 + 菜谱"。
 > 产品层面介绍看 `docs/README.zh-CN.md`、`docs/DETAILED_README.md` 与 `寻宝鼠_技术与工程设计白皮书_v1.docx`。如果目标是启动一个相似平台，先读 `platform-kickstart.md`；它定义可复用边界、最小启动路径和当前项目的功能基线。
 
@@ -10,6 +12,8 @@
 |---|---|---|
 | 启动一个相似平台/评估是否可复用 | `platform-kickstart.md` | `package.json`、`server/.env.example`、`server/`、`src/` |
 | 任何任务开始前 | 本 README §1 代码地图 + 根 AGENTS.md | — |
+| 梳理当前框架/评估功能边界与重构顺序 | [2026-10-19 框架盘点](architecture-review-2026-10-19.md) | `src/routes/index.tsx`、`functions/seqout-chat/index.ts`、`server/` |
+| 修复历史隔离、Web 认证、卡片累积、昵称与消息恢复 | [实施与验证记录](reliability-fixes-2026-10-20.md)、[优化方案](reliability-optimization-plan-2026-10-20.md) | `src/routes/index.tsx`、`src/services/`、`server/`、云端消息表 |
 | 改对话/工具/统计后端 | `architecture-2026-10-06.md` §二 §三 §七 | `functions/seqout-chat/index.ts` |
 | 改多源文献检索/验证 API | `literature-multisource-architecture.md` | `functions/seqout-chat/index.ts`、`server/.env.example` |
 | 改任何 UI/文案/主题 | `frontend-style-spec.md` 全文 | `src/styles.css` + 对应组件 |
@@ -23,9 +27,11 @@
 |---|---|---|---|
 | 对话编排后端 | `functions/seqout-chat/index.ts` | TOOL_DEFS / executeTool / tool 循环 / resolveStudy / 用量统计；SYSTEM_PROMPT 从 `prompts.generated.ts` 导入 | 平台可移植（Deno/Node），禁 Node-only API |
 | protocols.io 实验方案工具 | `functions/seqout-chat/protocols/` | types / client（ProtocolsError + 短时缓存 + 退避）/ search / detail（含 get_steps）/ index（单点出口 + 卡片投影） | 3 工具（总数 43）；注册门 `PROTOCOLS_IO_ENABLED`+Token 双保险；对齐 biomed 六项导出契约，禁反向 import 主文件 |
+| 基因/变异/临床证据 | `functions/seqout-chat/biomed/` | index（6 工具 schema/分派/卡片）+ gene / variant / clinvar | 网络与 NCBI 配额共用 `../shared.ts`，不反向 import 主 handler |
+| 平台工具适配 | `functions/seqout-chat/platform-tools.ts` | 可信目录过滤 / 固定 callback / delegation | Node 内部入口在 `server/local.mjs`；普通 SPA 不消费 platform_tool 事件 |
 | 对话提示词 | `functions/seqout-chat/prompts/system-{zh,en}.md` | **唯一可编辑来源**（中英双份平行，改一条必须两份同步） | 改完跑 `npm run sync:prompts` 重新生成 `prompts.generated.ts`；`tests/prompts-sync.test.ts` 守漂移，禁手改生成文件 |
 | 自托管服务壳 | `server/` | `local.mjs`（端口/CORS/统计落盘）、`account-api.mjs`（账号/历史/榜单） | DATA_DIR 卷持久化 |
-| 前端入口编排 | `src/routes/index.tsx` | handleSend / 会话切换 / effUser 分支 / petEvent 转发 | 748 行，改动前先通读相关段 |
+| 前端入口编排 | `src/routes/index.tsx` | handleSend / 会话切换 / effUser 分支 / petEvent 转发 | 身份与存储分支集中，改动前先通读相关段 |
 | SSE 客户端 | `src/services/seqoutChat.ts` | chatEndpoint / 协议帧解析 / authHeaders | 加协议帧要前后端同步改 |
 | 账号（自托管） | `src/services/localAuth.ts` + `src/components/auth/AuthDialog.tsx` | token 存取 / 登录合并 | 云端模式走 supabase，勿混 |
 | 排行榜统计 | `src/services/statsStore.ts` | bumpStats / fetchLeaderboard / mergeLocalStatsToAccount | 双模式（云端 RPC / 离线服务端） |

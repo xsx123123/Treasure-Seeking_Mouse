@@ -44,6 +44,7 @@ WORKDIR /app
 # server/local.mjs 以仓库根为 root 加载 functions/seqout-chat/index.ts
 COPY server ./server
 COPY functions ./functions
+COPY shared ./shared
 ENV CHAT_API_PORT=8787 \
     NODE_ENV=production
 EXPOSE 8787

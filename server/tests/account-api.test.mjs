@@ -60,13 +60,13 @@ test('注册/登录/写历史：正常邮箱不受影响，历史文件落在 hi
     assert.equal(email, 'mouse.dev@example.com', '带点号的正常邮箱必须放行');
 
     const put = mockRes();
-    await handle(mockReq('PUT', token), put, '/history', JSON.stringify({ sessions: [{ id: 's1' }] }));
+    await handle(mockReq('PUT', token), put, '/history', JSON.stringify({ sessions: [{ id: 's1', title: 'test', messages: [], ts: 1 }], deleted: [], base_revision: 0, request_id: 'safe-history' }));
     assert.equal(put.status, 200, put.body);
 
     const get = mockRes();
     await handle(mockReq('GET', token), get, '/history', '');
     assert.equal(get.status, 200, get.body);
-    assert.deepEqual(get.json().sessions, [{ id: 's1' }]);
+    assert.deepEqual(get.json().sessions, [{ id: 's1', title: 'test', messages: [], ts: 1, removedMessageIds: [] }]);
 
     // 等防抖落盘（400ms）后确认文件在 history/ 目录内、无目录外产物
     await new Promise((r) => setTimeout(r, 600));

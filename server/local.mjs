@@ -4,6 +4,8 @@
 //   2) pnpm run server        → http://localhost:8787
 //   3) 前端 .env.local 加 VITE_CHAT_API=http://localhost:8787，pnpm run dev
 import { createServer } from 'node:http';
+import { markTrustedRequest } from '../functions/seqout-chat/access.ts';
+import { createChatAccess } from './chat-access.mjs';
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -35,6 +37,7 @@ const { handler, restoreUsageStats, dumpUsageStats } = await import(pathToFileUR
 // 2b) 自托管账号体系：注册/登录/历史快照/排行榜（数据与统计同卷，见 DATA_DIR）
 const { createAccountApi, defaultDataDir } = await import(pathToFileURL(resolve(here, 'account-api.mjs')).href);
 const accountApi = createAccountApi({ dataDir: defaultDataDir(root) });
+const authorizeChat = createChatAccess({ authenticate: token => accountApi.authenticate(token) });
 const ACCOUNT_ROUTES = ['/auth/', '/history', '/leaderboard', '/stats/'];
 
 // 使用统计持久化：启动时恢复上次快照，之后每 15s 有变化就落盘（tmp + rename，防写一半）
@@ -131,12 +134,25 @@ createServer(async (req, res) => {
       const handled = await accountApi(req, res, pathname, Buffer.concat(chunks).toString('utf8'));
       if (handled !== false) return;
     }
+    const bodyText = Buffer.concat(chunks).toString('utf8');
+    let literature = false;
+    try { literature = JSON.parse(bodyText).action === 'literature'; } catch { /* handler validates */ }
+    if (pathname !== '/cygnusx/discovery' && pathname !== '/stats' && !literature) {
+      try { await authorizeChat(headers, ac.signal); }
+      catch (err) {
+        const status = err.message === 'unauthorized' ? 401 : 503;
+        res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+    }
     const request = new Request(`http://localhost:${PORT}${pathname === '/cygnusx/discovery' ? '/' : req.url}`, {
       method: req.method,
       headers,
       body: chunks.length && req.method !== 'GET' && req.method !== 'HEAD' ? Buffer.concat(chunks) : undefined,
       signal: ac.signal,
     });
+    markTrustedRequest(request);
     const response = await handler(request);
     res.writeHead(response.status, { ...CORS, ...Object.fromEntries(response.headers.entries()) });
     if (response.body) {

@@ -21,11 +21,13 @@ import { bumpStats, mergeLocalStatsToAccount } from "@/services/statsStore";
 import {
   localMe,
   localLogout,
-  pullServerHistory,
-  pushServerHistory,
   readLocalUser,
   type LocalUser,
 } from "@/services/localAuth";
+import { requestId } from "@/lib/requestId";
+import { useLocalHistory } from "@/hooks/use-local-history";
+import { conversationAccumulator, decodeMetadata, encodeMetadata } from "@/lib/conversationState";
+import { addTreasure } from "@/services/petStore";
 import { Leaderboard } from "@/components/chat/Leaderboard";
 import { UsageStatsDialog } from "@/components/chat/UsageStatsDialog";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -48,7 +50,6 @@ export const Route = createFileRoute("/")({
 });
 
 const FALLBACK_MODEL = "qwen3.8-flash";
-const LOCAL_SESSION_KEY = "seqout-local-session";
 const TEMP_SESSION_ID_KEY = "seqout-temp-session-id";
 const RAIL_COLLAPSED_KEY = "seqout-sidebar-collapsed"; // '1' = 收起（默认），'0' = 展开
 const GUEST_MAX_SESSIONS = 50; // 游客（未登录）最多保留的会话条数
@@ -61,9 +62,7 @@ interface LocalSession {
   ts: number; // 最后活跃时间（ms），用于 7 天过期清理
 }
 
-function uid(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
+const uid = requestId;
 
 function initialTempSessionId(): string {
   try {
@@ -77,30 +76,6 @@ function initialTempSessionId(): string {
   }
 }
 
-function readLocalSessions(): LocalSession[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_SESSION_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as (LocalSession & { ts?: number })[];
-    if (!Array.isArray(parsed)) return [];
-    const cutoff = Date.now() - GUEST_KEEP_DAYS * 24 * 3600 * 1000;
-    return parsed
-      .map((s) => ({ ...s, ts: typeof s.ts === "number" ? s.ts : Date.now() })) // 旧数据补时间戳
-      .filter((s) => s.ts >= cutoff) // 仅保留最近 7 天有活跃的会话
-      .slice(-GUEST_MAX_SESSIONS);
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalSessions(list: LocalSession[]): void {
-  try {
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(list.slice(-GUEST_MAX_SESSIONS)));
-  } catch {
-    /* 容量满时静默丢弃 */
-  }
-}
-
 function ChatPage(): React.ReactElement {
   // 软键盘适配：写入 --vvh，根容器据此收缩（见 use-visual-viewport.ts）
   useVisualViewport();
@@ -110,6 +85,7 @@ function ChatPage(): React.ReactElement {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null); // null = 本地临时会话
   const [localId, setLocalId] = useState<string>(initialTempSessionId);
+  const [messageSessionId, setMessageSessionId] = useState(localId);
   const [welcomeSuppressed, setWelcomeSuppressed] = useState(false);
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [composerDraft, setComposerDraft] = useState("");
@@ -176,35 +152,58 @@ function ChatPage(): React.ReactElement {
   const sendingRef = useRef(false); // 同一帧内的连续点击也只能启动一轮请求
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const messagesRef = useRef<ChatUIMessage[]>(messages); // 最新消息快照：异步收尾时读，避免闭包过期
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
   const catalogOkRef = useRef(false); // 模型目录是否加载成功；失败时发送空模型名，由服务端 LLM_MODEL 兜底，避免前端兜底模型在网关上不存在
   const user = session?.user ?? null;
 
   // 自托管本地账号（离线模式）：启动用本地缓存立即恢复，再向服务端校验 token
   const [localUser, setLocalUser] = useState<LocalUser | null>(() => (isOfflineMode ? readLocalUser() : null));
+  const [identityVerified, setIdentityVerified] = useState(!isOfflineMode);
+  const [identityError, setIdentityError] = useState(false);
+  const identityGeneration = useRef(0);
+  const verifyIdentity = useCallback(async () => {
+    const generation = ++identityGeneration.current;
+    setIdentityVerified(false); setIdentityError(false);
+    try {
+      const u = await localMe();
+      if (generation === identityGeneration.current) { setLocalUser(u); setIdentityVerified(true); }
+    } catch { if (generation === identityGeneration.current) setIdentityError(true); }
+  }, []);
   useEffect(() => {
     if (!isOfflineMode) return;
-    void localMe().then((u) => {
-      if (u) setLocalUser(u);
-    });
-  }, []);
+    void verifyIdentity();
+    const listener = (e: StorageEvent) => { if (e.key === 'seqout-local-token') void verifyIdentity(); };
+    window.addEventListener('storage', listener);
+    return () => { identityGeneration.current++; window.removeEventListener('storage', listener); };
+  }, [verifyIdentity]);
+  const localHistory = useLocalHistory(isOfflineMode ? localUser?.id ?? null : null, identityVerified);
+  const scope = user ? `supabase:${user.id}` : localHistory.scope;
+  const scopeEpoch = useRef({ scope, generation: 0 });
+  if (scopeEpoch.current.scope !== scope) scopeEpoch.current = { scope, generation: scopeEpoch.current.generation + 1 };
+  const scopeRef = useRef('');
+  scopeRef.current = `${scope}:${scopeEpoch.current.generation}`;
+  const [messageScope, setMessageScope] = useState(scope);
+  useEffect(() => {
+    abortRef.current?.abort();
+    const id = uid();
+    setMessages([]); setComposerDraft(''); setActiveId(null); setLocalId(id); setMessageSessionId(id); setMessageScope(scope);
+    setStreaming(false); sendingRef.current = false;
+    cloudSaveRef.current = null; setPersistenceError(null);
+  }, [scope]);
   /** 有效用户：云端登录优先，其次自托管本地账号；未登录为 null */
   const effUser = user ?? localUser;
 
-  // 模型目录
+  // Catalog requests are scoped too: a slow guest response cannot overwrite a logged-in catalog.
   useEffect(() => {
-    void fetchModelCatalog().then((c) => {
-      if (c && c.models.length > 0) {
-        catalogOkRef.current = true;
-        setModels(c.models);
-        const def = c.defaultModel && c.models.includes(c.defaultModel) ? c.defaultModel : c.models[0];
-        setModel(def);
+    let cancelled = false;
+    catalogOkRef.current = false;
+    void fetchModelCatalog().then(c => {
+      if (!cancelled && c && c.models.length) {
+        catalogOkRef.current = true; setModels(c.models);
+        setModel(c.defaultModel && c.models.includes(c.defaultModel) ? c.defaultModel : c.models[0]);
       }
     });
-  }, []);
+    return () => { cancelled = true; };
+  }, [effUser?.id]);
 
   // 认证状态
   useEffect(() => {
@@ -220,77 +219,29 @@ function ChatPage(): React.ReactElement {
       setActiveId(null);
       return;
     }
-    void listSessions()
-      .then(setSessions)
-      .catch(() => undefined);
+    let cancelled = false;
+    void listSessions().then(rows => { if (!cancelled) setSessions(rows); }).catch(() => undefined);
+    return () => { cancelled = true; };
   }, [user]);
 
-  // 未登录：本地会话列表状态（localSessions 变化时同步到侧栏）
-  const [localSessions, setLocalSessions] = useState<LocalSession[]>(() => readLocalSessions());
-
-  // 本地临时会话持久化（未登录试用）：写 localStorage 并同步侧栏列表
-  // 流式期间 messages 每 delta 变一次，直接落盘会全量 JSON 序列化 + 刷新侧栏 → 回答越长越卡；
-  // 这里对中间态做 400ms debounce，仅在停止变化（或流结束）后统一落盘
+  const localSessions = [...localHistory.sessions].sort((a, b) => b.ts - a.ts);
   useEffect(() => {
-    if (user) return;
-    const timer = setTimeout(() => {
-      const list = readLocalSessions();
-      const idx = list.findIndex((s) => s.id === localId);
-      const entry: LocalSession = {
-        id: localId,
-        title: messages.find((m) => m.role === "user")?.content.slice(0, 24) ?? "新对话",
-        messages,
-        ts: Date.now(),
-      };
-      if (idx >= 0) list[idx] = entry;
-      else if (messages.length > 0) list.push(entry);
-      writeLocalSessions(list);
-      setLocalSessions(list.filter((s) => s.messages.length > 0).reverse()); // 侧栏显示：最近活跃在前
-    }, 400);
+    if (user || messageScope !== scope || messageSessionId !== localId || !identityVerified || messages.length === 0) return;
+    const timer = setTimeout(() => localHistory.store.save({
+      id: localId, title: messages.find(m => m.role === 'user')?.content.slice(0, 24) ?? t('sidebar.newChat'),
+      messages: messages.map(({ streaming, liveTools, ...m }) => m), ts: Date.now(),
+    }), streaming ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [user, localId, messages]);
-
-  // 侧栏数据源：登录走云端，未登录走本地
-  const displaySessions: SessionRow[] = user
-    ? sessions
-    : localSessions.map((s) => ({ id: s.id, title: s.title, updated_at: new Date(s.ts).toISOString() }));
-
-  // 自托管本地登录：本地会话仍是消息状态的唯一来源，这里把整份快照防抖同步到服务端账号
-  // （localStorage 写入 ⇄ 侧栏刷新都会触发 localSessions 变化，800ms 防抖合并多次落盘）
-  useEffect(() => {
-    if (!isOfflineMode || !localUser) return;
-    const timer = setTimeout(() => {
-      void pushServerHistory(readLocalSessions().filter((s) => s.messages.length > 0)).catch(() => undefined);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [localUser, localSessions]);
-
-  // 本地登录成功：合并云端与本机会话（同 id 取较新），并把游客期累计成绩并入账号排行榜
+  }, [user, localId, messages, messageScope, scope, messageSessionId, identityVerified, streaming, localHistory.store, t]);
+  const displaySessions: SessionRow[] = user ? sessions : localSessions.map(s => ({ id: s.id, title: s.title, updated_at: new Date(s.ts).toISOString() }));
   async function handleLocalAuthSuccess(u: LocalUser): Promise<void> {
-    setLocalUser(u);
-    setAuthOpen(false);
-    try {
-      const remote = await pullServerHistory();
-      if (remote.length > 0) {
-        const local = readLocalSessions();
-        const merged = [...remote];
-        for (const s of local) {
-          const i = merged.findIndex((r) => r.id === s.id);
-          if (i >= 0) {
-            if ((s.ts ?? 0) > ((merged[i] as LocalSession).ts ?? 0)) merged[i] = s;
-          } else {
-            merged.push(s);
-          }
-        }
-        writeLocalSessions(merged as LocalSession[]);
-        setLocalSessions(merged.filter((s) => (s.messages?.length ?? 0) > 0).reverse() as LocalSession[]);
-      }
-    } catch {
-      /* 服务端历史不可达时保留本地现状 */
-    }
+    identityGeneration.current++;
+    setLocalUser(u); setIdentityVerified(true); setIdentityError(false); setAuthOpen(false);
     void mergeLocalStatsToAccount();
   }
-
+  const cloudSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const [importIds, setImportIds] = useState<string[]>([]);
   // 切换会话时加载消息（登录走云端；未登录走本地会话）
   // 不依赖 localSessions：它被持久化 effect 高频刷新，靠 ref 读取避免流式期间整组 effect 重跑
   const localSessionsRef = useRef<LocalSession[]>(localSessions);
@@ -301,13 +252,14 @@ function ChatPage(): React.ReactElement {
     if (!activeId) return;
     if (!user) {
       const local = localSessionsRef.current.find((s) => s.id === activeId);
-      setMessages(local ? local.messages : []);
+      setMessages(local ? local.messages : []); setMessageSessionId(activeId);
       return;
     }
     let cancelled = false;
     void listMessages(activeId)
       .then((rows) => {
         if (cancelled) return;
+        setMessageSessionId(activeId);
         setMessages(
           rows.map((r) => ({
             id: r.id,
@@ -315,6 +267,7 @@ function ChatPage(): React.ReactElement {
             content: r.content,
             cards: r.cards,
             toolLogs: r.tool_logs,
+            ...decodeMetadata(r.metadata),
           })),
         );
       })
@@ -347,7 +300,7 @@ function ChatPage(): React.ReactElement {
     setMessages([]);
     setActiveId(null); // 首条消息发送时再建会话
     const id = uid();
-    setLocalId(id);
+    setLocalId(id); setMessageSessionId(id);
     try {
       sessionStorage.setItem(TEMP_SESSION_ID_KEY, id);
     } catch {
@@ -362,15 +315,18 @@ function ChatPage(): React.ReactElement {
       if (streaming) return;
       setComposerDraft("");
       setActiveId(id);
+      if (!user) setLocalId(id);
       setWelcomeSuppressed(true);
       setDrawerOpen(false);
     },
-    [streaming],
+    [streaming, user],
   );
 
   async function handleSend(text: string, historyOverride?: ChatUIMessage[], restoreOnError = false): Promise<void> {
     text = text.trim();
-    if (!text || sendingRef.current) return;
+    if (!text || sendingRef.current || messageSessionId !== (activeId ?? localId) || messageScope !== scope || (isOfflineMode && !identityVerified)) return;
+    const requestScope = scopeRef.current;
+    const requestStore = localHistory.store;
     sendingRef.current = true;
     // historyOverride：重新生成时传入截断后的消息，避免闭包里的全量 messages 把已废弃回答带给模型
     const source = historyOverride ?? messages;
@@ -386,12 +342,13 @@ function ChatPage(): React.ReactElement {
     abortRef.current = controller;
     setStreaming(true);
 
-    let finalCards: DatasetCard[] = [];
-    const finalTools: ToolLog[] = [];
+    const accumulator = conversationAccumulator(asstMsg.id);
+    let finalMessage: ChatUIMessage = asstMsg;
     statRef.current = { digs: 0, cards: 0 };
     petCardsRef.current = 0; // 每轮重置：否则开箱动画只在当页第一个回答触发一次
 
     function patch(fn: (m: ChatUIMessage) => ChatUIMessage): void {
+      if (scopeRef.current !== requestScope) return;
       setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? fn(m) : m)));
     }
 
@@ -400,8 +357,10 @@ function ChatPage(): React.ReactElement {
       [...history, { role: "user", content: text }],
       catalogOkRef.current ? model : "", // 目录加载失败时留空，由服务端 LLM_MODEL 兜底
       {
-        onDelta: (t) => patch((m) => ({ ...m, content: m.content + t })),
+        onDelta: (text) => { accumulator.delta(text); patch(m => ({ ...m, content: m.content + text })); },
         onTool: (evt) => {
+          if (scopeRef.current !== requestScope) return;
+          if (evt.status !== "running") accumulator.tool({ name: evt.name, label: evt.label, ok: evt.status === "done", ms: evt.ms ?? 0 });
           if (evt.status === "running") {
             statRef.current.digs += 1;
             // 文献检索走专属「读书」剧场，其余工具仍是挖宝
@@ -419,28 +378,21 @@ function ChatPage(): React.ReactElement {
           });
         },
         onCards: (cards) => {
-          finalCards = cards;
-          // 文献卡片（literature_search 出货）走「闪耀发现」剧场，组学卡片仍走开箱剧场
-          const petEvt = cards.length > 0 && cards[0]?.meta?.source === "literature"
-            ? makePetEvent({ type: "lit_cards", count: cards.length })
-            : makePetEvent({ type: "cards", count: cards.length });
-          if (petCardsRef.current === 0 && cards.length > 0) setPetEvent(petEvt);
-          petCardsRef.current = Math.max(petCardsRef.current, cards.length);
-          patch((m) => ({ ...m, cards }));
+          accumulator.cards(cards);
+          if (scopeRef.current !== requestScope) return;
+          const cumulative = accumulator.snapshot().cards;
+          if (petCardsRef.current === 0 && cards.length) setPetEvent(makePetEvent({
+            type: cards[0]?.meta?.source === 'literature' ? 'lit_cards' : 'cards', count: cumulative.length,
+          }));
+          petCardsRef.current = cumulative.length;
+          patch(m => ({ ...m, cards: cumulative }));
         },
-        onPolariseq: (accession) => {
-          patch((m) => ({ ...m, boost: { accession } }));
-        },
-        onGrounding: (g) => {
-          patch((m) => ({ ...m, grounding: g }));
-        },
-        onEnd: (p) => {
-          finalCards = p.cards.length > 0 ? p.cards : finalCards;
-          finalTools.push(...p.tools);
-          statRef.current.cards = Math.max(p.cards.length, petCardsRef.current);
-          setPetEvent(makePetEvent({ type: "done", cards: statRef.current.cards }));
-        },
+        onPolariseq: (accession) => { accumulator.boost(accession); patch(m => ({ ...m, boost: { accession } })); },
+        onGrounding: (g) => { accumulator.grounding(g); patch(m => ({ ...m, grounding: g })); },
+        onEnd: (p) => { accumulator.end(p.cards, p.tools); },
         onError: (message) => {
+          accumulator.error(message);
+          if (scopeRef.current !== requestScope) return;
           setPetEvent(makePetEvent({ type: "error" }));
           patch((m) => ({ ...m, error: message }));
           if (restoreOnError) setComposerDraft((draft) => draft || text);
@@ -450,56 +402,60 @@ function ChatPage(): React.ReactElement {
       lang,
       );
     } catch {
-      setPetEvent(makePetEvent({ type: "error" }));
+      accumulator.error(t("err.interrupted"));
+      if (scopeRef.current === requestScope) setPetEvent(makePetEvent({ type: "error" }));
       patch((m) => ({ ...m, error: t("err.interrupted") }));
       if (restoreOnError) setComposerDraft((draft) => draft || text);
     } finally {
-      patch((m) => ({ ...m, streaming: false, liveTools: undefined, toolLogs: finalTools, cards: finalCards }));
-      setStreaming(false);
-      abortRef.current = null;
-      sendingRef.current = false;
+      finalMessage = accumulator.snapshot();
+      patch(m => ({ ...m, ...finalMessage, liveTools: undefined }));
+      if (scopeRef.current === requestScope) {
+        setStreaming(false); abortRef.current = null; sendingRef.current = false;
+        statRef.current.cards = finalMessage.cards?.length ?? 0;
+        if (statRef.current.cards) addTreasure(statRef.current.cards);
+        setPetEvent(makePetEvent({ type: 'done', cards: statRef.current.cards }));
+      }
+      if (!user) requestStore.save({ id: localId, title: text.slice(0, 24),
+        messages: [...source, userMsg, finalMessage].map(({ streaming, liveTools, ...m }) => m), ts: Date.now() });
     }
+    if (scopeRef.current !== requestScope) return;
 
     // 排行榜统计上报（fire-and-forget，失败静默）
-    void bumpStats(
+    if (accumulator.ended || finalMessage.content || finalMessage.cards?.length) void bumpStats(
       { treasures: statRef.current.cards, digs: statRef.current.digs, chats: 1 },
       { isGuest: !effUser, userId: effUser?.id, username: effUser?.email ?? "" },
     );
 
-    // 持久化
-    if (user) {
-      try {
-        let sid = activeId;
-        if (!sid) {
-          const row = await createSession(user.id, text.slice(0, 30));
-          sid = row.id;
-          setActiveId(sid);
-          setSessions((prev) => [row, ...prev]);
-        } else {
-          void touchSession(sid);
-          setSessions((prev) =>
-            prev.map((s) => (s.id === sid ? { ...s, updated_at: new Date().toISOString() } : s)),
-          );
-        }
-        await insertMessage(sid, user.id, { role: "user", content: text });
-        // 流已结束，asstMsg 内容即最终值；不在 setState updater 里做网络副作用（StrictMode 下 updater 双调用会重复入库）
-        const snapshot = asstMsg;
-        const latest = messagesRef.current.find((m) => m.id === snapshot.id);
-        if (latest && !latest.error) {
-          void insertMessage(sid, user.id, {
-            role: "assistant",
-            content: latest.content,
-            cards: latest.cards ?? null,
-            tool_logs: latest.toolLogs ?? null,
-          }).catch(() => undefined);
-        }
-      } catch {
-        /* 持久化失败不打断对话，内容仍在内存 */
-      }
+    // Keep stable message IDs and a retry closure so a missing schema/network failure is recoverable.
+    if (user && (finalMessage.content || finalMessage.cards?.length)) {
+      let sid = activeId;
+      const persistCloud = async () => {
+        if (scopeRef.current !== requestScope) return;
+        try {
+          if (!sid) {
+            const row = await createSession(user.id, text.slice(0, 30)); sid = row.id;
+            if (scopeRef.current !== requestScope) return;
+            setSessions(prev => [row, ...prev]);
+          } else { void touchSession(sid); }
+          await insertMessage(sid, user.id, { id: userMsg.id, role: 'user', content: text });
+          if (scopeRef.current !== requestScope) return;
+          await insertMessage(sid, user.id, { id: finalMessage.id, role: 'assistant', content: finalMessage.content,
+            cards: finalMessage.cards ?? null, tool_logs: finalMessage.toolLogs ?? null, metadata: encodeMetadata(finalMessage) });
+          if (scopeRef.current !== requestScope) return;
+          setActiveId(sid); setPersistenceError(null); cloudSaveRef.current = null;
+        } catch { if (scopeRef.current === requestScope) setPersistenceError(t('reliability.cloudSave')); }
+      };
+      cloudSaveRef.current = persistCloud;
+      await persistCloud();
     }
   }
 
   async function handleRename(id: string, title: string): Promise<void> {
+    if (!user) {
+      const item = localSessions.find(s => s.id === id);
+      if (item) localHistory.store.save({ ...item, title, ts: Date.now() });
+      return;
+    }
     try {
       await renameSession(id, title);
       setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
@@ -511,12 +467,11 @@ function ChatPage(): React.ReactElement {
   async function handleDelete(id: string): Promise<void> {
     if (!user) {
       // 未登录：删除 localStorage 本地会话
-      writeLocalSessions(readLocalSessions().filter((s) => s.id !== id));
-      setLocalSessions((prev) => prev.filter((s) => s.id !== id));
+      localHistory.store.remove(id);
       if (activeId === id) {
         setActiveId(null);
         setMessages([]);
-        setLocalId(uid());
+        const id = uid(); setLocalId(id); setMessageSessionId(id);
       }
       return;
     }
@@ -536,17 +491,18 @@ function ChatPage(): React.ReactElement {
     if (streaming) return;
     if (isOfflineMode) {
       // 自托管账号：服务端无状态会话，清本地 token 即登出；本机聊天记录保留在 localStorage
+      identityGeneration.current++;
       localLogout();
-      setLocalUser(null);
+      setLocalUser(null); setIdentityVerified(true);
       setMessages([]);
       setActiveId(null);
-      setLocalId(uid());
+      const id = uid(); setLocalId(id); setMessageSessionId(id);
       return;
     }
     await supabase.auth.signOut();
     setMessages([]);
     setActiveId(null);
-    setLocalId(uid());
+    const id = uid(); setLocalId(id); setMessageSessionId(id);
   }
 
   /** 重新挖一次：截断到该助手消息之前，用其前最近一条用户提问 + 截断后的历史重发 */
@@ -585,7 +541,7 @@ function ChatPage(): React.ReactElement {
       }}
       onLogout={handleLogout}
       storageNote={
-        user
+        effUser
           ? undefined
           : t("sidebar.guestNote", {
               n: GUEST_MAX_SESSIONS,
@@ -607,6 +563,7 @@ function ChatPage(): React.ReactElement {
       welcome={messages.length === 0}
       onEngage={() => setWelcomeSuppressed(true)}
       onSend={(text) => void handleSend(text)}
+      disabled={(isOfflineMode && !identityVerified) || messageSessionId !== (activeId ?? localId)}
       onStop={() => abortRef.current?.abort()}
     />
   );
@@ -749,6 +706,17 @@ function ChatPage(): React.ReactElement {
             {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
           </button>
         </header>
+
+        {(identityError || localHistory.error || persistenceError) ? <div role="status" className="border-b border-border bg-card px-4 py-2 text-sm text-destructive">
+          {persistenceError || t(identityError ? 'reliability.identity' : localHistory.error === 'history_storage' ? 'reliability.storage' : localHistory.error === 'history_invalid' ? 'reliability.invalidHistory' : 'reliability.sync')}
+          <button className="ml-3 underline" onClick={() => { if (persistenceError && cloudSaveRef.current) { void cloudSaveRef.current(); return; } setPersistenceError(null); if (isOfflineMode) { if (identityError) void verifyIdentity(); else void localHistory.store.start(); } }}>{t('reliability.retry')}</button>
+        </div> : null}
+        {!user && localHistory.pending.length > 0 ? <details className="border-b border-border bg-card px-4 py-2 text-sm">
+          <summary>{t('reliability.legacy')}</summary>
+          <p className="my-2 text-muted-foreground">{t('reliability.legacyHint')}</p>
+          {localHistory.pending.map(s => <label key={s.id} className="my-1 flex gap-2"><input type="checkbox" checked={importIds.includes(s.id)} onChange={e => setImportIds(ids => e.target.checked ? [...ids, s.id] : ids.filter(id => id !== s.id))} />{s.title}</label>)}
+          <button className="mt-2 underline disabled:opacity-40" disabled={!importIds.length || !identityVerified} onClick={() => { localHistory.store.importLegacy(importIds); setImportIds([]); }}>{t('reliability.import')}</button>
+        </details> : null}
 
         <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto">
           {messages.length === 0 ? (

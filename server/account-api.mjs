@@ -1,9 +1,10 @@
 // 自托管账号体系：注册 / 登录 / 聊天历史快照 / 排行榜统计（登录榜 + 访客榜）
 // 零依赖，数据落盘 JSON（tmp + rename），与使用统计共用 DATA_DIR（容器挂 /app/data 卷）。
 // 安全定位：自托管熟人场景——scrypt 存口令哈希 + 随机 token，无速率限制/邮箱验证。
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
+import { validSessions } from '../shared/history.ts';
 
 export function createAccountApi({ dataDir }) {
   mkdirSync(dataDir, { recursive: true });
@@ -65,8 +66,10 @@ export function createAccountApi({ dataDir }) {
   function readHistory(email) {
     const f = historyFile(email);
     if (cache.has(f)) return cache.get(f);
-    let data = { sessions: [] };
-    try { data = JSON.parse(readFileSync(f, 'utf8')); } catch { /* 首次 */ }
+    let data = { sessions: [], deleted: [], revision: 0, requests: [] };
+    try { data = JSON.parse(readFileSync(f, 'utf8')); } catch { if (existsSync(f)) throw new Error('history_corrupt'); }
+    if (!validSessions(data.sessions) || (data.deleted !== undefined && (!Array.isArray(data.deleted) || data.deleted.some(id => typeof id !== 'string'))) || (data.requests !== undefined && !Array.isArray(data.requests))) throw new Error('history_corrupt');
+    data = { ...data, revision: Number.isSafeInteger(data.revision) ? data.revision : 0, deleted: data.deleted ?? [], requests: data.requests ?? [] };
     cache.set(f, data);
     return data;
   }
@@ -139,7 +142,7 @@ export function createAccountApi({ dataDir }) {
   }
 
   // ---------- 路由：返回 true 表示已处理 ----------
-  return async function handleAccountApi(req, res, pathname, bodyText) {
+  const handleAccountApi = async function(req, res, pathname, bodyText) {
     try {
       // 认证
       if (pathname === '/auth/register' && req.method === 'POST') {
@@ -181,17 +184,42 @@ export function createAccountApi({ dataDir }) {
       if (pathname === '/history' && req.method === 'GET') {
         const em = userOfToken(req);
         if (!em) return json(res, 401, { error: '未登录或登录已过期' });
-        return json(res, 200, readHistory(em));
+        const { requests, ...history } = readHistory(em);
+        return json(res, 200, { ...history, protocol_version: 2 });
       }
 
       if (pathname === '/history' && req.method === 'PUT') {
         const em = userOfToken(req);
         if (!em) return json(res, 401, { error: '未登录或登录已过期' });
         const body = bodyJson(bodyText);
-        const sessions = Array.isArray(body.sessions) ? body.sessions.slice(0, 100) : [];
-        cache.set(historyFile(em), { sessions, updated_at: new Date().toISOString() });
-        mark(historyFile(em));
-        return json(res, 200, { ok: true, count: sessions.length });
+        const previous = readHistory(em);
+        if (!Number.isSafeInteger(body.base_revision) || body.base_revision < 0)
+          return json(res, 428, { error: 'history_protocol_upgrade_required' });
+        if (!validSessions(body.sessions) || !Array.isArray(body.deleted) || body.deleted.some(id => typeof id !== 'string') ||
+            typeof body.request_id !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(body.request_id))
+          return json(res, 400, { error: 'invalid_history' });
+        if (body.sessions.length > 1000 || Buffer.byteLength(bodyText) > 1024 * 1024)
+          return json(res, 413, { error: 'history_limit' });
+        const digest = createHash('sha256').update(bodyText).digest('hex');
+        const applied = previous.requests.find(r => r.id === body.request_id);
+        if (applied) return json(res, applied.digest === digest ? 200 : 409,
+          applied.digest === digest ? { ok: true, revision: applied.revision } : { error: 'request_id_reused' });
+        if (body.base_revision !== previous.revision)
+          return json(res, 409, { error: 'history_conflict' });
+        const deleted = [...new Set([...previous.deleted, ...body.deleted])];
+        const next = { sessions: body.sessions.filter(s => !deleted.includes(s.id)).map(s => {
+          const old = previous.sessions.find(p => p.id === s.id);
+          const removedMessageIds = [...new Set([...(old?.removedMessageIds ?? []), ...(s.removedMessageIds ?? [])])];
+          return { ...s, removedMessageIds, messages: s.messages.filter(m => !removedMessageIds.includes(m.id)) };
+        }), deleted,
+          revision: previous.revision + 1, updated_at: new Date().toISOString(),
+          requests: [...previous.requests, { id: body.request_id, digest, revision: previous.revision + 1 }].slice(-100) };
+        // No await between revision comparison and durable atomic replacement (single writer).
+        const file = historyFile(em);
+        writeFileSync(file + '.tmp', JSON.stringify(next));
+        renameSync(file + '.tmp', file);
+        cache.set(file, next);
+        return json(res, 200, { ok: true, revision: next.revision });
       }
 
       // 排行榜
@@ -245,6 +273,8 @@ export function createAccountApi({ dataDir }) {
         const name = str(body.name, 24).trim();
         if (!name) return json(res, 400, { error: '昵称不能为空' });
         const em = userOfToken(req);
+        if (req.headers.authorization && !em) return json(res, 401, { error: 'unauthorized' });
+        if (body.token !== undefined) return json(res, 400, { error: 'use_authorization_bearer' });
         if (em) {
           accounts()[em].name = name;
           saveAccount(em);
@@ -265,6 +295,12 @@ export function createAccountApi({ dataDir }) {
       return true;
     }
   };
+
+  handleAccountApi.authenticate = token => {
+    const email = tokenEmail(token);
+    return email ? { id: email, email, name: accounts()[email].name } : null;
+  };
+  return handleAccountApi;
 
   function tokenEmail(token) {
     for (const [email, acc] of Object.entries(accounts())) {

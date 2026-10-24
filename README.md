@@ -114,6 +114,14 @@ pnpm run dev       # Vite frontend at http://localhost:3015
 
 `server/.env` is the single configuration source for local development and Docker. The Vite config reads its `VITE_*` values from that directory.
 
+### History and access
+
+Local history is partitioned by service and account. Signed-in history is restored before syncing and uses revision checks; guest history keeps the existing 50-session / 7-day limit. Legacy unowned history is backed up and can be selected for import.
+
+`CHAT_ACCESS_MODE=public` permits guests; `authenticated` requires a valid account. The default is public without `CHAT_SHARED_SECRET`, authenticated when it is configured. The shared secret stays on the server; browsers send their account token. Node supports local accounts and configured Supabase Auth; direct Edge access uses Supabase Auth or an authorized service caller.
+
+Before deploying the updated cloud message writer, apply [the metadata migration](migrations/20261020_chat_message_metadata.sql) to your Supabase database. It preserves grounding notices, download recommendations and completion state for newly saved messages. Existing messages remain readable. See [implementation and validation](docs/ARC/reliability-fixes-2026-10-20.md) for deployment details and verification limits.
+
 ## Literature API Configuration
 
 All literature credentials are server-side only. Never put them in frontend code or commit `server/.env`.
@@ -159,7 +167,7 @@ Browser
 
 The backend keeps provider credentials private, normalizes provider-specific responses into one paper schema, and sends cards separately from the model context. The frontend renders the stream, cards, evidence links and pet events.
 
-Repository layout (after the 2026-10-18 cleanup, 21 root entries):
+Repository layout (including the reliability additions):
 
 ```text
 ├── src/                     # React SPA (routes / components / services / i18n / pet assets)
@@ -170,6 +178,8 @@ Repository layout (after the 2026-10-18 cleanup, 21 root entries):
 │   ├── prompts/             # editable zh/en system prompts (run npm run sync:prompts)
 │   └── tests/               # offline regression suites + fixtures
 ├── server/                  # self-hosted Node service (chat + accounts + stats)
+├── shared/                  # runtime-neutral history contracts and merge
+├── migrations/              # additive cloud schema migrations
 ├── scripts/                 # paper_evidence.py and its tests
 ├── deploy/                  # Dockerfile (dual target) + compose + nginx
 ├── docs/                    # bilingual READMEs, ARC notes, white paper, badges

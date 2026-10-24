@@ -237,6 +237,7 @@ make docker-start                    # ${t("about.deploySteps")}`}
           <p className="mt-2 text-xs text-muted-foreground/80">
             {t("about.deployOpen", { url: "http://localhost:10087/" })}
           </p>
+          <p className="mt-2 text-cap leading-relaxed text-muted-foreground">{t("about.reliability")}</p>
           <h3 className="mt-4 text-cap font-semibold text-foreground/85">{t("about.litCfg")}</h3>
           <p className="mt-1.5 text-cap leading-relaxed text-muted-foreground">{t("about.litCfgDesc")}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">

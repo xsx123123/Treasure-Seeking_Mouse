@@ -3,21 +3,15 @@
 import { chatEndpoint } from "@/services/seqoutChat";
 import { getDeviceId } from "@/services/statsStore";
 
-const KEY_TOKEN = "seqout-local-token";
-const KEY_USER = "seqout-local-user"; // {email, name} 展示用快照，token 才是凭证
+import { getLocalToken, LOCAL_TOKEN_KEY as KEY_TOKEN, LOCAL_USER_KEY as KEY_USER } from "./localIdentity";
+import type { HistorySnapshot, HistorySession } from "../../shared/history.ts";
+export { getLocalToken } from "./localIdentity";
+
 
 export interface LocalUser {
   id: string; // = email
   email: string;
   name: string;
-}
-
-export function getLocalToken(): string {
-  try {
-    return localStorage.getItem(KEY_TOKEN) ?? "";
-  } catch {
-    return "";
-  }
 }
 
 export function readLocalUser(): LocalUser | null {
@@ -44,32 +38,41 @@ function persist(user: LocalUser | null, token?: string): void {
   }
 }
 
-async function req<T>(path: string, opts: { method?: string; body?: unknown; auth?: boolean } = {}): Promise<T> {
+export class LocalApiError extends Error {
+  status: number;
+  code: string;
+  constructor(status: number, code: string) { super(code); this.status = status; this.code = code; }
+}
+
+async function req<T>(path: string, opts: { method?: string; body?: unknown; auth?: boolean; token?: string; signal?: AbortSignal } = {}): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (opts.auth !== false) {
-    const token = getLocalToken();
+    const token = opts.token ?? getLocalToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
   const resp = await fetch(`${chatEndpoint()}${path}`, {
     method: opts.method ?? "GET",
-    headers,
+    headers, signal: opts.signal,
     ...(opts.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   });
   const data = (await resp.json().catch(() => ({}))) as T & { error?: string };
-  if (!resp.ok) throw new Error(data.error ?? `HTTP ${resp.status}`);
+  if (!resp.ok) throw new LocalApiError(resp.status, data.error ?? `HTTP ${resp.status}`);
   return data;
 }
 
 /** 启动时用本地 token 恢复登录态；服务端不可用时返回 null（保持游客） */
 export async function localMe(): Promise<LocalUser | null> {
-  if (!getLocalToken()) return null;
+  const token = getLocalToken();
+  if (!token) return null;
   try {
-    const me = await req<{ email: string; name: string }>("/auth/me");
+    const me = await req<{ email: string; name: string }>("/auth/me", { token });
+    if (getLocalToken() !== token) throw new Error("identity_changed");
     const user: LocalUser = { id: me.email, email: me.email, name: me.name };
     persist(user);
     return user;
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof LocalApiError && err.status === 401 && getLocalToken() === token) { persist(null, ""); return null; }
+    throw err;
   }
 }
 
@@ -101,20 +104,16 @@ export function localLogout(): void {
 
 // ---------- 聊天历史快照（整包同步：小数据量、幂等、易合并） ----------
 
-export interface LocalSessionSnapshot {
-  id: string;
-  title: string;
-  messages: unknown[];
-  ts: number;
+export type LocalSessionSnapshot = HistorySession;
+export async function pullServerHistory(token: string, signal?: AbortSignal): Promise<HistorySnapshot> {
+  const r = await req<HistorySnapshot & { protocol_version?: number }>("/history", { token, signal });
+  if (r.protocol_version !== 2) throw new LocalApiError(428, 'history_protocol_upgrade_required');
+  return r;
 }
-
-export async function pullServerHistory(): Promise<LocalSessionSnapshot[]> {
-  const r = await req<{ sessions?: LocalSessionSnapshot[] }>("/history");
-  return Array.isArray(r.sessions) ? r.sessions : [];
-}
-
-export async function pushServerHistory(sessions: LocalSessionSnapshot[]): Promise<void> {
-  await req("/history", { method: "PUT", body: { sessions } });
+export async function pushServerHistory(snapshot: HistorySnapshot, token: string, requestId: string, signal?: AbortSignal): Promise<{ revision: number }> {
+  return req("/history", { method: "PUT", token, signal, body: {
+    sessions: snapshot.sessions, deleted: snapshot.deleted, base_revision: snapshot.revision, request_id: requestId,
+  } });
 }
 
 // ---------- 排行榜统计 ----------
@@ -140,9 +139,9 @@ export async function mergeServerStats(totals: LocalStatTotals): Promise<void> {
 
 export async function pushServerNickname(name: string): Promise<void> {
   const body: Record<string, unknown> = { name, device: getDeviceId() };
-  const token = getLocalToken();
-  if (token) body.token = token;
-  await req("/stats/nickname", { method: "POST", body, auth: false });
+  await req("/stats/nickname", { method: "POST", body });
+  const user = readLocalUser();
+  if (user) persist({ ...user, name });
 }
 
 export interface ServerStatRow extends LocalStatTotals {

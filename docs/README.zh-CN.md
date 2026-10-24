@@ -62,6 +62,14 @@ pnpm run dev       # 前端 dev server（固定 3015 端口）
 
 环境变量唯一来源是 `server/.env`：本地开发与 Docker 部署共用（vite `envDir` 指向 `server/`，Makefile 起容器带 `--env-file server/.env`），`VITE_*` 构建期变量与 `LLM_*`/`WEB_PORT` 等运行时变量都写在这一份里。
 
+### 历史与访问控制
+
+本地历史按服务与账号分区。账号历史先恢复后同步，写入检查版本；游客继续保留最多 50 条、7 天的历史。旧版无归属历史保留备份，可勾选导入当前身份。
+
+`CHAT_ACCESS_MODE=public` 允许游客，`authenticated` 要求有效账号；默认无 `CHAT_SHARED_SECRET` 时公开，配置该密钥后要求登录。共享密钥仅存在服务端，浏览器发送账号 token。Node 支持本地账号和已配置的 Supabase Auth；直接访问 Edge 时使用 Supabase Auth 或已授权的服务调用方。
+
+部署新版云端消息写入前，先向 Supabase 数据库应用 [metadata 迁移](../migrations/20261020_chat_message_metadata.sql)，以保存新消息的核验提示、下载推荐与完成状态。旧消息仍可读取。部署细节及验证范围见 [实施与验证记录](ARC/reliability-fixes-2026-10-20.md)。
+
 ## 阿寻能挖的数据库
 
 叫「GEO 寻宝鼠」只是因为 GEO 是最老的那条矿脉——阿寻其实不只能搜 GEO，一次下铲同时穿透 7 个组学数据库，并能联动九个文献来源、三条基因矿脉和（可选开启的）实验方案矿脉：
@@ -90,7 +98,7 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 
 ## 目录
 
-仓库结构（2026-10-18 目录整理后，根目录 21 项）：
+仓库结构（含可靠性修复新增目录）：
 
 ```text
 ├── src/                     # React 单页应用（路由 / 组件 / 服务 / i18n / 桌宠素材）
@@ -100,6 +108,8 @@ React 19 + TypeScript · Vite 7 · Tailwind CSS v4（双主题 design token）·
 │   ├── biomed/              # MyGene / MyVariant / ClinVar 适配器
 │   ├── prompts/             # 可编辑中英系统提示词（改后跑 npm run sync:prompts）
 │   └── tests/               # 离线回归测试 + fixtures
+├── shared/                  # 跨运行时历史契约与合并
+├── migrations/              # 云端增量数据库迁移
 ├── server/                  # 自托管 Node 服务（对话 + 账号 + 统计）
 ├── scripts/                 # paper_evidence.py 及其测试
 ├── deploy/                  # Docker 部署（Dockerfile 双 target + compose + nginx）
