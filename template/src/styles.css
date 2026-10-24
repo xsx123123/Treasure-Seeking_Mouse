@@ -1,0 +1,243 @@
+@import "tailwindcss" source(none);
+@source "../src";
+
+/* 主题：亮色 :root + 暗色 .dark 两套（token 单一来源，组件一律消费语义 token，禁止硬编码色值） */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-helix: var(--helix);
+  --color-helix-soft: var(--helix-soft);
+  --color-panel: var(--panel);
+  --color-gold: var(--gold);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  /* 字号刻度：xs 11 / cap 12.5 / sm 14(默认) / base 16(默认) / display 22 */
+  --text-xs: 11px;
+  --text-cap: 12.5px;
+  --text-display: 22px;
+}
+
+:root {
+  --radius: 0.75rem;
+  --font-sans: "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+
+  /* 中性学术风：浅灰画布 + 纯白内容面 + 青绿主行动色 + 琥珀强调 */
+  --background: #FAF8F5;
+  --foreground: #292524;
+  --card: #FFFFFF;
+  --card-foreground: #292524;
+  --popover: #FFFFFF;
+  --popover-foreground: #292524;
+  --primary: #0F766E;                                  /* teal-700：主行动按钮 */
+  --primary-foreground: #FFFFFF;
+  --secondary: #F6F3EE;
+  --secondary-foreground: #292524;
+  --muted: #F6F3EE;
+  --muted-foreground: #57534E;                         /* stone-600，主底 7.2:1 */
+  --accent: #F1EDE6;
+  --accent-foreground: #292524;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --border: #E7E5E4;
+  --input: #E7E5E4;
+  --ring: #0F766E59;
+
+  /* 自定义语义色 */
+  --helix: #0F766E;                                    /* 主强调 = teal */
+  --helix-soft: #CCFBF1;                               /* 浅青胶囊底 */
+  --panel: #F6F3EE;                                    /* 侧栏/头部面板 */
+  --gold: #B45309;                                     /* 琥珀强调（hover 焦点） */
+}
+
+/* 暗色：深蓝灰底、卡片亮一档、teal 提亮 */
+.dark {
+  --background: #1C1917;
+  --foreground: #E7E5E4;
+  --card: #292524;
+  --card-foreground: #E7E5E4;
+  --popover: #292524;
+  --popover-foreground: #E7E5E4;
+  --primary: #2DD4BF;
+  --primary-foreground: #042F2E;
+  --secondary: #33302B;
+  --secondary-foreground: #E7E5E4;
+  --muted: #33302B;
+  --muted-foreground: #A8A29E;
+  --accent: #3B372F;
+  --accent-foreground: #E7E5E4;
+  --destructive: #F87171;
+  --destructive-foreground: #450A0A;
+  --border: #44403C;
+  --input: #44403C;
+  --ring: #2DD4BF59;
+
+  --helix: #2DD4BF;
+  --helix-soft: #134E4A;
+  --panel: #231F1B;
+  --gold: #F59E0B;
+}
+
+/* ---------- 基础 ---------- */
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--helix) 25%, transparent);
+}
+
+/* 滚动条（暗色提亮） */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted-foreground) 30%, transparent); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted-foreground) 50%, transparent); }
+
+/* ---------- 组件级工具类 ---------- */
+
+/* 统一轻投影（暗色替换），组件勿再写死 shadow */
+.shadow-soft {
+  box-shadow: 0 1px 2px 0 rgb(41 37 36 / 0.05), 0 1px 3px 0 rgb(41 37 36 / 0.06);
+}
+.shadow-soft-lg {
+  box-shadow: 0 4px 6px -1px rgb(41 37 36 / 0.08), 0 2px 4px -2px rgb(41 37 36 / 0.06);
+}
+.dark .shadow-soft {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+}
+.dark .shadow-soft-lg {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+}
+
+/* 遮罩层 */
+.overlay-dim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.35);
+}
+
+/* 折叠触发条（grounding 警示条等） */
+.collapse-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  text-align: left;
+  transition: background-color 150ms;
+}
+.collapse-trigger:hover {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* ---------- 动效（prefers-reduced-motion 全量清零） ---------- */
+
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+.typing-caret::after {
+  content: "▌";
+  margin-left: 2px;
+  color: var(--helix);
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card-in {
+  animation: card-in 0.35s ease-out both;
+}
+
+/* ---------- Markdown 渲染壳 ---------- */
+
+.md-body {
+  line-height: 1.7;
+  word-break: break-word;
+}
+.md-body p { margin: 0.35em 0; }
+.md-body p:first-child { margin-top: 0; }
+.md-body p:last-child { margin-bottom: 0; }
+.md-body strong { color: var(--helix); font-weight: 600; }
+.md-body ul, .md-body ol { margin: 0.4em 0; padding-left: 1.4em; }
+.md-body li { margin: 0.2em 0; }
+.md-body blockquote {
+  margin: 0.5em 0;
+  padding: 0.2em 0.9em;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+.md-body pre {
+  margin: 0.5em 0;
+  padding: 0.75em 1em;
+  border-radius: 8px;
+  background: var(--secondary);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.md-body code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.md-body :not(pre) > code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--secondary);
+}
+.md-body table {
+  margin: 0.5em 0;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.md-body th, .md-body td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+}
+.md-body a {
+  color: var(--helix);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------- 无障碍：动效清零 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

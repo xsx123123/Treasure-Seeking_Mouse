@@ -1,0 +1,17 @@
+# 构建上下文噪音不进镜像
+node_modules
+dist
+server/.env
+.env
+.env.*
+!.env*.example
+*.local
+.git
+.gitignore
+.tsbuildinfo
+.pytest_cache
+docs
+.DS_Store
+# 本地运行数据不进镜像（LLM 用量统计 + 账号历史）
+server/.stats.json
+server/data/

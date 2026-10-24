@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.env.*
+!.env*.example
+*.local
+.DS_Store
+*.tsbuildinfo
+
+# 测试 fixtures 是 API 响应快照，必须入库（覆盖 .gz 数据文件忽略规则）
+!functions/agent-chat/tests/fixtures/*.json.gz
+
+# 自托管对话服务的本地运行数据（使用统计快照，重启后恢复）
+server/.stats.json
+
+# 本地自托管运行数据（账号/历史落盘）
+server/data/

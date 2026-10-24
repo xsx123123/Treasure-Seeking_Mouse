@@ -1,0 +1,66 @@
+# {{PROJECT_NAME}} · Docker Compose 部署（Agent 项目模板）
+#
+# 配置只有一个来源：server/.env（与本地 `npm run server` 共用同一份，无重复维护）。
+#
+# 部署（在仓库根执行 make docker-start，或手动）：
+#   docker compose --env-file server/.env -f deploy/docker-compose.yml up -d --build
+#   打开 http://localhost:10087/   # 发一条消息能看到流式回复即部署成功（端口由 server/.env 的 WEB_PORT 控制）
+#
+# 架构（同源反代形态）：
+#   browser → web(nginx:80) ─┬─ /           → 前端静态产物（构建期 VITE_CHAT_API=/chat-api 固化）
+#                            └─ /chat-api/  → chat:8787（server/local.mjs）→ LLM 网关 + 工具上游
+
+name: "{{PROJECT_SLUG}}"
+
+services:
+  chat:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: chat
+    restart: unless-stopped
+    # 运行时密钥等直接读 server/.env（与本地自托管同一份），无需在部署侧重复填写。
+    # required: false —— 文件缺失时不阻断 build，容器启动后由 server/local.mjs 打印缺密钥告警。
+    env_file:
+      - path: ../server/.env
+        required: false
+    environment:
+      # 覆盖 server/.env 的值：容器内固定监听 8787，与 nginx 的 proxy_pass 对齐
+      CHAT_API_PORT: "8787"
+      # local.mjs 默认只绑 127.0.0.1；容器内必须绑 0.0.0.0 才能被同网络的 web(nginx) 访问
+      CHAT_API_HOST: "0.0.0.0"
+      NODE_ENV: production
+      # 使用统计快照写到命名卷，容器重建/重启不丢（server/local.mjs 每 15s 落盘）
+      STATS_FILE: /app/data/stats.json
+    volumes:
+      - stats-data:/app/data
+    expose:
+      - "8787"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8787/stats >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+      args:
+        # 构建期变量：同源反代，浏览器只访问 web 一个端口（勿改，改了要重新 build）
+        VITE_CHAT_API: /chat-api
+        # 可选：配云模式实例则恢复云端登录，留空则纯游客 + 本地账号模式
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+    restart: unless-stopped
+    depends_on:
+      - chat
+    ports:
+      # 宿主访问端口：默认 10087，在 server/.env 设 WEB_PORT 按服务器实际可用端口覆盖
+      - "${WEB_PORT:-10087}:80"
+
+volumes:
+  # 使用统计快照（chat 服务挂载到 /app/data），docker compose down 不会删除
+  stats-data:

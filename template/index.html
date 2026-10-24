@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="{{DEFAULT_LANG}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>{{PROJECT_NAME}}</title>
+    <style>
+      /* 内联样式确保主题底色立即生效，避免首帧闪烁 */
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      html {
+        background-color: #FAF8F5; /* = :root --background，token 改动须同步此处 */
+        color-scheme: light;
+      }
+      html.dark {
+        background-color: #1C1712; /* = .dark --background 的 sRGB 近似，改动须同步 */
+        color-scheme: dark;
+      }
+    </style>
+    <script>
+      // React 加载前按已存偏好挂 dark 类（主题键由应用写入），默认浅色；
+      // ?theme=dark URL 参数可强制（截图/自动化取证通道）
+      (function () {
+        try {
+          if (localStorage.getItem("{{PROJECT_SLUG}}-theme") === "dark" || /[?&]theme=dark/.test(location.search)) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+      // React 加载前同步语言（语言键由应用写入；?lang= 可强制覆盖），默认语言为模板刘认值
+      (function () {
+        try {
+          var forced = /[?&]lang=(zh|en)\b/.exec(location.search);
+          var lang = forced ? forced[1] : localStorage.getItem("{{PROJECT_SLUG}}-lang");
+          if (lang !== "zh" && lang !== "en") {
+            lang = "{{DEFAULT_LANG}}";
+          }
+          document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+          document.title = "{{PROJECT_NAME}}";
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
