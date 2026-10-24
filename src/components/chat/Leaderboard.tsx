@@ -64,11 +64,12 @@ function RankRow({
   const { t } = useI18n();
   const m = metricOf(row, range);
   const top3 = rank <= 3;
+  const medalSize = rank === 1 ? "h-10 w-10 text-sm" : rank === 2 ? "h-9 w-9 text-cap" : "h-8 w-8 text-cap";
   return (
     <li
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+      className={`relative flex items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5 transition-colors ${
         highlight
-          ? "border-pet-amber/40 bg-pet-gold-soft/60"
+          ? "border-pet-amber/40 bg-pet-gold-soft/60 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-gradient-to-b before:from-pet-amber/80 before:to-pet-amber/30"
           : "border-transparent hover:border-border hover:bg-secondary/50"
       }`}
     >
@@ -81,7 +82,7 @@ function RankRow({
         {top3 ? MEDALS[rank - 1] : rank}
       </span>
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-cap font-semibold ring-1 ${
+        className={`flex shrink-0 items-center justify-center rounded-full font-semibold ring-1 ${top3 ? medalSize : "h-8 w-8 text-cap"} ${
           row.isGuest
             ? "bg-helix-soft text-helix ring-helix/20"
             : "bg-pet-gold-soft text-pet-amber-deep ring-pet-amber/25"
@@ -206,8 +207,8 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={t("board.title")}>
-      <div className="absolute inset-0 overlay-dim" onClick={onClose} />
-      <div className="shadow-soft-lg relative flex h-full w-full max-w-[420px] flex-col border-l border-border bg-card">
+      <div className="anim-fade-in absolute inset-0 overlay-dim" onClick={onClose} />
+      <div className="anim-slide-in-right relative my-2 mr-2 flex h-[calc(100dvh-1rem)] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft-lg">
         {/* 头部 */}
         <div className="flex items-center gap-2 border-b border-border bg-panel/70 px-4 py-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pet-gold-soft text-pet-amber-deep ring-1 ring-pet-amber/25">
@@ -363,8 +364,8 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
       {/* 昵称编辑浮层 */}
       {nickOpen ? (
         <div className="absolute inset-0 z-10 flex items-center justify-center p-6">
-          <div className="absolute inset-0 overlay-dim" onClick={() => setNickOpen(false)} />
-          <div className="shadow-soft-lg relative w-full max-w-[320px] rounded-2xl border border-border bg-card p-5">
+          <div className="anim-fade-in absolute inset-0 overlay-dim" onClick={() => setNickOpen(false)} />
+          <div className="anim-pop-in relative w-full max-w-[320px] rounded-2xl border border-border bg-card p-5 shadow-soft-lg">
             <h3 className="text-sm font-semibold tracking-tight text-foreground">{t("board.nickTitle")}</h3>
             <p className="mt-1 text-cap text-muted-foreground">{t("board.nickDesc")}</p>
             <input
@@ -391,7 +392,7 @@ export function Leaderboard({ open, onClose, ownUserId }: LeaderboardProps): Rea
                 type="button"
                 disabled={nickSaving}
                 onClick={() => void saveNickname()}
-                className="flex items-center gap-1.5 rounded-lg bg-helix px-3.5 py-1.5 text-cap font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-lg bg-helix px-3.5 py-1.5 text-cap font-medium text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
               >
                 {nickSaving ? <Loader2 size={13} className="animate-spin" /> : null}
                 {t("board.save")}

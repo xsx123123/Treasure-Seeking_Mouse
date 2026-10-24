@@ -42,9 +42,11 @@ export function EmptyState({ onPick, composer, submitting, dialogContainer }: { 
       {composer}
       <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
         {TASKS.map(({ id, icon: Icon }) => (
-          <section key={id} className="flex flex-col rounded-lg border border-border bg-card p-4 shadow-soft transition-colors hover:border-helix/40">
+          <section key={id} className="hover-lift group flex flex-col rounded-lg border border-border bg-card p-4 shadow-soft hover:border-helix/40">
             <div className="flex min-h-[72px] gap-3">
-              <Icon size={19} className={`mt-0.5 shrink-0 ${id === "literature" ? "text-gold" : "text-helix"}`} />
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${id === "literature" ? "bg-pet-gold-soft/70 text-pet-amber-deep group-hover:bg-pet-gold-soft" : "bg-helix-soft/60 text-helix group-hover:bg-helix-soft"}`}>
+                <Icon size={18} />
+              </span>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-sm font-semibold">{t(`empty.${id}.title`)}</span>
@@ -56,8 +58,8 @@ export function EmptyState({ onPick, composer, submitting, dialogContainer }: { 
             <ul className="mt-2 border-t border-border pt-2">
               {(["one", "two"] as const).map((n) => (
                 <li key={n}>
-                  <button type="button" disabled={submitting} onClick={() => onPick(t(`empty.${id}.${n}`))} className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs leading-relaxed transition-colors hover:bg-secondary hover:text-helix focus-visible:outline-2 focus-visible:outline-helix disabled:cursor-not-allowed disabled:opacity-50">
-                    <ArrowUpLeft size={14} className="mt-0.5 shrink-0 text-helix" /><span>{t(`empty.${id}.${n}`)}</span>
+                  <button type="button" disabled={submitting} onClick={() => onPick(t(`empty.${id}.${n}`))} className="group/item flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs leading-relaxed transition-colors hover:bg-secondary hover:text-helix focus-visible:outline-2 focus-visible:outline-helix active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
+                    <ArrowUpLeft size={14} className="mt-0.5 shrink-0 text-helix transition-transform duration-150 group-hover/item:-translate-y-0.5 group-hover/item:translate-x-0.5" /><span>{t(`empty.${id}.${n}`)}</span>
                   </button>
                 </li>
               ))}

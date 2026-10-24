@@ -24,13 +24,13 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       className={`relative h-[22px] w-[40px] shrink-0 rounded-full transition-colors ${checked ? "bg-helix" : "bg-border"}`}
     >
       <span
-        className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-card shadow-soft transition-all duration-200 ${checked ? "left-[18px]" : "left-[2px]"}`}
+        className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-card shadow-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ${checked ? "left-[18px]" : "left-[2px]"}`}
       />
     </button>
   );
 }
 
-const rowCls = "flex items-center gap-3 px-3.5 py-3";
+const rowCls = "flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-secondary/40";
 const rowTitle = "text-cap font-semibold text-foreground";
 const rowDesc = "mt-0.5 text-xs leading-snug text-muted-foreground";
 const rowIcon = "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary text-helix";
@@ -86,7 +86,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
   };
 
   return (
-    <div className="w-[300px] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-soft-lg">
+    <div className="anim-pop-in w-[300px] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-soft-lg">
       {/* 标题栏 */}
       <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
         <p className="flex items-center gap-1.5 text-sm font-semibold">
@@ -112,7 +112,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
             disabled={size <= PET_SIZE_MIN}
             title={t("pet.settings.shrink")}
             aria-label={t("pet.settings.shrink")}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-all hover:text-foreground active:scale-95 disabled:opacity-35"
           >
             <Minimize2 size={13} />
           </button>
@@ -125,7 +125,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
             disabled={size >= PET_SIZE_MAX}
             title={t("pet.settings.grow")}
             aria-label={t("pet.settings.grow")}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-all hover:text-foreground active:scale-95 disabled:opacity-35"
           >
             <Maximize2 size={13} />
           </button>
@@ -180,7 +180,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
         <button
           type="button"
           onClick={() => emitPetResetPos()}
-          className="shrink-0 rounded-lg border border-pet-amber/40 bg-pet-gold-soft/60 px-2.5 py-1 text-cap font-medium text-pet-amber-deep transition-colors hover:bg-pet-gold-soft"
+          className="shrink-0 rounded-lg border border-pet-amber/40 bg-pet-gold-soft/60 px-2.5 py-1 text-cap font-medium text-pet-amber-deep transition-all hover:bg-pet-gold-soft active:scale-[0.98]"
         >
           {t("pet.settings.resetBtn")}
         </button>
@@ -193,7 +193,7 @@ export function PetSettingsPanel({ onClose, onRecall }: { onClose?: () => void; 
         <button
           type="button"
           onClick={recall}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-helix-soft px-2 py-2 text-cap font-medium text-helix transition-colors hover:bg-helix-soft/70"
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-helix-soft px-2 py-2 text-cap font-medium text-helix transition-all hover:bg-helix-soft/70 active:scale-[0.98]"
         >
           <PawPrint size={13} />
           {t("pet.settings.recall")}

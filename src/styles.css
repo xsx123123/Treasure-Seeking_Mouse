@@ -247,18 +247,18 @@
     radial-gradient(50% 40% at 85% 8%, #15803D12 0%, transparent 65%);
 }
 
-/* 统一轻投影体系 */
+/* 统一轻投影体系：近景接触影 + 远景环境影双层，卡片浮于纸面 */
 .shadow-soft {
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05), 0 4px 12px -4px rgb(0 0 0 / 0.06);
 }
 .shadow-soft-lg {
-  box-shadow: 0 4px 16px -6px rgb(0 0 0 / 0.08), 0 1px 3px 0 rgb(0 0 0 / 0.04);
+  box-shadow: 0 8px 28px -10px rgb(0 0 0 / 0.14), 0 2px 6px -2px rgb(0 0 0 / 0.06);
 }
 .dark .shadow-soft {
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.35), 0 4px 14px -4px rgb(0 0 0 / 0.4);
 }
 .dark .shadow-soft-lg {
-  box-shadow: 0 4px 18px -6px rgb(0 0 0 / 0.5), 0 1px 3px 0 rgb(0 0 0 / 0.35);
+  box-shadow: 0 8px 30px -10px rgb(0 0 0 / 0.6), 0 2px 6px -2px rgb(0 0 0 / 0.4);
 }
 
 /* 打字光标 */
@@ -302,6 +302,37 @@
 }
 .card-in {
   animation: card-in 0.35s ease-out both;
+}
+
+/* 遮罩淡入 / 弹层面板入场 / 右抽屉滑入（配套 reduced-motion 清零清单） */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.anim-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.anim-pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.21, 1.02, 0.55, 1.01) both;
+}
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+.anim-slide-in-right {
+  animation: slide-in-right 0.25s cubic-bezier(0.21, 1.02, 0.55, 1.01) both;
+}
+
+/* 统计条形图入场生长：只写 from，to 隐式取元素内联 scaleX 目标值 */
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+}
+.bar-grow {
+  animation: bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* hover 微抬（中性黑低透明阴影） */
@@ -875,6 +906,14 @@
     animation: none;
     opacity: 1;
     transform: none;
+  }
+  .anim-fade-in, .anim-pop-in, .anim-slide-in-right {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .bar-grow {
+    animation: none;
   }
   .hover-lift {
     transition: border-color 0.15s ease, background-color 0.15s ease !important;

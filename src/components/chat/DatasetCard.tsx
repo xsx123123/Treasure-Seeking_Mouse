@@ -378,7 +378,9 @@ export function DatasetCardGrid({ cards, hostMessageId, onViewSteps }: { cards: 
   return (
     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((c, i) => (
-        <DatasetCardView key={`${c.accession}-${i}`} card={c} hostMessageId={hostMessageId} onViewSteps={onViewSteps} />
+        <div key={`${c.accession}-${i}`} className="card-in [&>*]:h-full" style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
+          <DatasetCardView card={c} hostMessageId={hostMessageId} onViewSteps={onViewSteps} />
+        </div>
       ))}
     </div>
   );

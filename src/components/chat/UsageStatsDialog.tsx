@@ -48,8 +48,8 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t("stats.title")}>
-      <div className="absolute inset-0 overlay-dim" onClick={onClose} />
-      <div className="relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft-lg">
+      <div className="anim-fade-in absolute inset-0 overlay-dim" onClick={onClose} />
+      <div className="anim-pop-in relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft-lg">
         {/* 头部 */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <BarChart3 size={16} className="text-helix" />
@@ -137,7 +137,7 @@ export function UsageStatsDialog({ open, onClose }: { open: boolean; onClose: ()
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-secondary">
                         <div
-                          className="h-full w-full origin-left rounded-full bg-helix/70 transition-transform duration-500"
+                          className="bar-grow h-full w-full origin-left rounded-full bg-gradient-to-r from-helix/60 to-helix"
                           style={{ transform: `scaleX(${maxTool ? Math.max(4, Math.round((tool.count / maxTool) * 100)) / 100 : 0})` }}
                         />
                       </div>
@@ -170,7 +170,7 @@ function StatCard({ icon, label, value, hint }: { icon: React.ReactNode; label: 
         <span className="text-helix">{icon}</span>
         {label}
       </div>
-      <p className="font-display mt-1 text-display font-semibold leading-none tracking-tight text-foreground">{value}</p>
+      <p className="mt-1 font-mono text-display font-semibold leading-none tracking-tight tabular-nums text-foreground">{value}</p>
       {hint ? <p className="mt-1 truncate text-xs text-muted-foreground/70" title={hint}>{hint}</p> : null}
     </div>
   );
