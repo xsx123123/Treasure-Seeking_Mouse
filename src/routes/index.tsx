@@ -30,10 +30,13 @@ import { conversationAccumulator, decodeMetadata, encodeMetadata } from "@/lib/c
 import { addTreasure } from "@/services/petStore";
 import { Leaderboard } from "@/components/chat/Leaderboard";
 import { UsageStatsDialog } from "@/components/chat/UsageStatsDialog";
+import { QueuePanel } from "@/components/chat/QueuePanel";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useI18n } from "@/i18n/provider";
 
-import { fetchModelCatalog, requestSeqoutChat, type DatasetCard, type ToolLog } from "@/services/seqoutChat";
+import { cancelTask, fetchModelCatalog, fetchTaskResult, listMyTasks, requestSeqoutChat, resumeTask, tasksCapability, type DatasetCard, type TaskEventFrame, type ToolLog } from "@/services/seqoutChat";
+import { TaskQueueStore, QUEUE_DRAFT_RESTORE_WINDOW_MS, type QueuedMessage } from "@/services/taskQueue";
+import { taskRegistry } from "@/services/taskRegistry";
 import {
   createSession,
   deleteSession,
@@ -86,6 +89,10 @@ function ChatPage(): React.ReactElement {
   const [activeId, setActiveId] = useState<string | null>(null); // null = 本地临时会话
   const [localId, setLocalId] = useState<string>(initialTempSessionId);
   const [messageSessionId, setMessageSessionId] = useState(localId);
+  const messageSessionIdRef = useRef(messageSessionId);
+  useEffect(() => {
+    messageSessionIdRef.current = messageSessionId;
+  }, [messageSessionId]);
   const [welcomeSuppressed, setWelcomeSuppressed] = useState(false);
   const [messages, setMessages] = useState<ChatUIMessage[]>([]);
   const [composerDraft, setComposerDraft] = useState("");
@@ -149,11 +156,27 @@ function ChatPage(): React.ReactElement {
     });
   }, []);
   const abortRef = useRef<AbortController | null>(null);
-  const sendingRef = useRef(false); // 同一帧内的连续点击也只能启动一轮请求
+  const sendingRef = useRef(false); // 派发中标记（防同一帧双击重复派发；互斥语义由会话内任务串行承接）
+  const asstIdRef = useRef<string>(""); // 当前助手消息 id（任务化首帧到达后替换为 task_id）
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const catalogOkRef = useRef(false); // 模型目录是否加载成功；失败时发送空模型名，由服务端 LLM_MODEL 兜底，避免前端兜底模型在网关上不存在
   const user = session?.user ?? null;
+
+  // ---- 消息排队与后台任务（能力位开启时增强；缺省=旧服务端全部走现状路径） ----
+  const [tasksEnabled, setTasksEnabled] = useState(false); // 能力位（目录响应 capabilities.tasks 驱动）
+  const [taskMaxConcurrent, setTaskMaxConcurrent] = useState<number | null>(null);
+  const [queueRevision, setQueueRevision] = useState(0); // 队列变更刷新触发器
+  const [queuePaused, setQueuePaused] = useState(false); // 失败暂停态（用户明示选择前不自动启动）
+  const [queueFullNotice, setQueueFullNotice] = useState(false);
+  const [undoClearUntil, setUndoClearUntil] = useState(0); // 清空找回窗口截止时间戳
+  const [queueConfirm, setQueueConfirm] = useState(false); // 刷新恢复待确认态
+  const [badges, setBadges] = useState<Map<string, "running" | "unseen">>(new Map()); // 会话栏任务徽标
+  const reportedTasksRef = useRef<Set<string>>(new Set()); // 统计幂等键集合（内存镜像；localStorage 持久化）
+  const recoverScannedRef = useRef(false); // 启动恢复扫描只跑一次
+  const queueStoreRef = useRef<TaskQueueStore | null>(null);
+  const queueScopeRef = useRef("");
+
 
   // 自托管本地账号（离线模式）：启动用本地缓存立即恢复，再向服务端校验 token
   const [localUser, setLocalUser] = useState<LocalUser | null>(() => (isOfflineMode ? readLocalUser() : null));
@@ -191,6 +214,25 @@ function ChatPage(): React.ReactElement {
   }, [scope]);
   /** 有效用户：云端登录优先，其次自托管本地账号；未登录为 null */
   const effUser = user ?? localUser;
+
+  /** 队列 store 按身份分区惰性创建（scopeKey=端点+账号分区，身份切换天然隔离） */
+  const queueStore = useCallback((): TaskQueueStore => {
+    if (queueStoreRef.current && queueScopeRef.current === scope) return queueStoreRef.current;
+    const store = new TaskQueueStore({
+      storage: typeof localStorage === "undefined" ? null : localStorage,
+      scopeKey: scope,
+      onStorageError: () => setPersistenceError(t("reliability.storage")),
+    });
+    queueStoreRef.current = store;
+    queueScopeRef.current = scope;
+    return store;
+  }, [scope, t]);
+
+  /** 能力位开启且当前会话有进行中任务（入队判定单点） */
+  const sessionTaskActive = useCallback((): boolean => {
+    if (!tasksEnabled) return false;
+    return taskRegistry.bySession(messageSessionId)?.phase === "running";
+  }, [tasksEnabled, messageSessionId]);
 
   // Catalog requests are scoped too: a slow guest response cannot overwrite a logged-in catalog.
   useEffect(() => {
@@ -295,7 +337,8 @@ function ChatPage(): React.ReactElement {
   }, [messages, streaming]);
 
   const startNew = useCallback(() => {
-    if (streaming) return;
+    // 能力位开启时切换自由（后台任务续跑）；降级模式维持禁切锁
+    if (streaming && !tasksEnabled) return;
     setComposerDraft("");
     setMessages([]);
     setActiveId(null); // 首条消息发送时再建会话
@@ -308,25 +351,71 @@ function ChatPage(): React.ReactElement {
     }
     setWelcomeSuppressed(false);
     setDrawerOpen(false);
-  }, [streaming]);
+  }, [streaming, tasksEnabled]);
 
   const selectSession = useCallback(
     (id: string) => {
-      if (streaming) return;
+      if (streaming && !tasksEnabled) return; // 降级模式维持禁切锁
       setComposerDraft("");
       setActiveId(id);
       if (!user) setLocalId(id);
       setWelcomeSuppressed(true);
       setDrawerOpen(false);
     },
-    [streaming, user],
+    [streaming, tasksEnabled, user],
   );
 
-  async function handleSend(text: string, historyOverride?: ChatUIMessage[], restoreOnError = false): Promise<void> {
+  /** 统计幂等上报（spec 5.5.1 规则 1）：前台终态与后台补报走同一函数同一幂等键，撞车面结构性消除 */
+  const reportTaskStats = useCallback((taskId: string | null, stats: { treasures: number; digs: number; chats: number }) => {
+    if (taskId) {
+      if (reportedTasksRef.current.has(taskId)) return;
+      try {
+        const raw = localStorage.getItem("seqout:task-stats-reported");
+        const reported: string[] = raw ? JSON.parse(raw) : [];
+        if (reported.includes(taskId)) {
+          reportedTasksRef.current.add(taskId);
+          return;
+        }
+        const next = [...reported, taskId].slice(-500); // 容量 500 FIFO 淘汰
+        localStorage.setItem("seqout:task-stats-reported", JSON.stringify(next));
+      } catch { /* 存储失败时内存集合仍防同页重复 */ }
+      reportedTasksRef.current.add(taskId);
+    }
+    void bumpStats(stats, { isGuest: !effUser, userId: effUser?.id, username: effUser?.email ?? "" });
+  }, [effUser]);
+
+  /** 任务终态回调编排：统计幂等 + 队列推进（正常完成）/ 失败暂停（异常 5.1.3-3） */
+  const onTaskTerminal = useCallback((frame: TaskEventFrame, taskSessionRef: string) => {
+    taskRegistry.applyTaskFrame(frame);
+    setBadges((prev) => {
+      const next = new Map(prev);
+      if (frame.status === "completed" || frame.status === "failed" || frame.status === "cancelled") next.set(taskSessionRef, "unseen");
+      return next;
+    });
+    if (frame.status === "completed") {
+      // 正常完成 → FIFO 弹出队首派发；setTimeout(0) 等当前请求 finally 释放派发标记（终态帧在流内先于 [DONE]）。
+      // 仅该会话为当前活跃会话时自动推进；后台会话的队列项保持排队，切回该会话时由恢复逻辑派发（不擅自派发原则）。
+      const next = queueStore().promoteNext(taskSessionRef);
+      if (next) {
+        setQueueRevision((r) => r + 1);
+        setTimeout(() => {
+          if (taskSessionRef === messageSessionIdRef.current) void handleSend(next.content, undefined, false, next.queue_id);
+        }, 0);
+      }
+    } else if (frame.status === "failed") {
+      // 失败 → 队列暂停 + 呈现「继续下一条/清空队列」选择（用户明示前不自动启动）
+      setQueuePaused(true);
+      setQueueRevision((r) => r + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueStore]);
+
+  async function handleSend(text: string, historyOverride?: ChatUIMessage[], restoreOnError = false, queueId?: string): Promise<void> {
     text = text.trim();
     if (!text || sendingRef.current || messageSessionId !== (activeId ?? localId) || messageScope !== scope || (isOfflineMode && !identityVerified)) return;
     const requestScope = scopeRef.current;
     const requestStore = localHistory.store;
+    const sendSessionRef = messageSessionId;
     sendingRef.current = true;
     // historyOverride：重新生成时传入截断后的消息，避免闭包里的全量 messages 把已废弃回答带给模型
     const source = historyOverride ?? messages;
@@ -337,6 +426,7 @@ function ChatPage(): React.ReactElement {
     const userMsg: ChatUIMessage = { id: uid(), role: "user", content: text };
     const asstMsg: ChatUIMessage = { id: uid(), role: "assistant", content: "", streaming: true, liveTools: [] };
     setMessages((prev) => [...prev, userMsg, asstMsg]);
+    asstIdRef.current = asstMsg.id;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -346,10 +436,16 @@ function ChatPage(): React.ReactElement {
     let finalMessage: ChatUIMessage = asstMsg;
     statRef.current = { digs: 0, cards: 0 };
     petCardsRef.current = 0; // 每轮重置：否则开箱动画只在当页第一个回答触发一次
+    let taskId: string | null = null; // 任务化首帧到达后回填（非任务化路径恒 null）
+    /** 任务事件归集：双写进 registry（后台恢复数据源），呈现仍走 patch（scope 守卫丢弃非活跃会话） */
+    const dispatchToRegistry = (apply: (acc: ReturnType<typeof conversationAccumulator>) => void): void => {
+      if (taskId) taskRegistry.dispatch(taskId, apply);
+    };
 
     function patch(fn: (m: ChatUIMessage) => ChatUIMessage): void {
       if (scopeRef.current !== requestScope) return;
-      setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? fn(m) : m)));
+      const targetId = asstIdRef.current;
+      setMessages((prev) => prev.map((m) => (m.id === targetId ? fn(m) : m)));
     }
 
     try {
@@ -357,13 +453,31 @@ function ChatPage(): React.ReactElement {
       [...history, { role: "user", content: text }],
       catalogOkRef.current ? model : "", // 目录加载失败时留空，由服务端 LLM_MODEL 兜底
       {
-        onDelta: (text) => { accumulator.delta(text); patch(m => ({ ...m, content: m.content + text })); },
+        onTask: (frame) => {
+          if (frame.status === "running" && !taskId) {
+            // 任务化首帧（先于任何 delta）：注册 + 消息 id 替换为 task_id（切回 hydration 的归集锚点）
+            taskId = frame.task_id;
+            taskRegistry.register(frame.task_id, frame.session_ref ?? sendSessionRef, scope);
+            taskRegistry.attachStream(frame.task_id, () => controller.abort());
+            const prevId = asstIdRef.current;
+            asstIdRef.current = frame.task_id;
+            if (scopeRef.current === requestScope) {
+              setMessages((prev) => prev.map((m) => (m.id === prevId ? { ...m, id: frame.task_id } : m)));
+            }
+            setBadges((prev) => new Map(prev).set(frame.session_ref ?? sendSessionRef, "running"));
+          } else if (taskId && frame.task_id === taskId) {
+            if (frame.status !== "running" && frame.status !== "queued") onTaskTerminal(frame, sendSessionRef);
+            else taskRegistry.applyTaskFrame(frame);
+          }
+        },
+        onSnapshot: (frame) => { taskRegistry.applySnapshot(frame); },
+        onDelta: (text) => { accumulator.delta(text); dispatchToRegistry((acc) => acc.delta(text)); patch(m => ({ ...m, content: m.content + text })); },
         onTool: (evt) => {
+          if (evt.status !== "running") { accumulator.tool({ name: evt.name, label: evt.label, ok: evt.status === "done", ms: evt.ms ?? 0 }); dispatchToRegistry((acc) => acc.tool({ name: evt.name, label: evt.label, ok: evt.status === "done", ms: evt.ms ?? 0 })); }
           if (scopeRef.current !== requestScope) return;
-          if (evt.status !== "running") accumulator.tool({ name: evt.name, label: evt.label, ok: evt.status === "done", ms: evt.ms ?? 0 });
           if (evt.status === "running") {
             statRef.current.digs += 1;
-            // 文献检索走专属「读书」剧场，其余工具仍是挖宝
+            // 文献检索走专属「读书」剧场，其余工具仍是挖宝（桌宠门控：scope 守卫挡住后台会话事件）
             setPetEvent(makePetEvent(evt.name === "literature_search" ? { type: "lit_start" } : { type: "tool_start" }));
           }
           patch((m) => {
@@ -379,6 +493,7 @@ function ChatPage(): React.ReactElement {
         },
         onCards: (cards) => {
           accumulator.cards(cards);
+          dispatchToRegistry((acc) => acc.cards(cards));
           if (scopeRef.current !== requestScope) return;
           const cumulative = accumulator.snapshot().cards;
           if (petCardsRef.current === 0 && cards.length) setPetEvent(makePetEvent({
@@ -387,11 +502,12 @@ function ChatPage(): React.ReactElement {
           petCardsRef.current = cumulative.length;
           patch(m => ({ ...m, cards: cumulative }));
         },
-        onPolariseq: (accession) => { accumulator.boost(accession); patch(m => ({ ...m, boost: { accession } })); },
-        onGrounding: (g) => { accumulator.grounding(g); patch(m => ({ ...m, grounding: g })); },
-        onEnd: (p) => { accumulator.end(p.cards, p.tools); },
+        onPolariseq: (accession) => { accumulator.boost(accession); dispatchToRegistry((acc) => acc.boost(accession)); patch(m => ({ ...m, boost: { accession } })); },
+        onGrounding: (g) => { accumulator.grounding(g); dispatchToRegistry((acc) => acc.grounding(g)); patch(m => ({ ...m, grounding: g })); },
+        onEnd: (p) => { accumulator.end(p.cards, p.tools); dispatchToRegistry((acc) => acc.end(p.cards, p.tools)); },
         onError: (message) => {
           accumulator.error(message);
+          dispatchToRegistry((acc) => acc.error(message));
           if (scopeRef.current !== requestScope) return;
           setPetEvent(makePetEvent({ type: "error" }));
           patch((m) => ({ ...m, error: message }));
@@ -400,6 +516,7 @@ function ChatPage(): React.ReactElement {
       },
       controller.signal,
       lang,
+      tasksEnabled ? { queueId, sessionRef: sendSessionRef } : undefined, // 能力位缺省=旧行为（协议只加不改：缺省字段旧形态）
       );
     } catch {
       accumulator.error(t("err.interrupted"));
@@ -420,11 +537,14 @@ function ChatPage(): React.ReactElement {
     }
     if (scopeRef.current !== requestScope) return;
 
-    // 排行榜统计上报（fire-and-forget，失败静默）
-    if (accumulator.ended || finalMessage.content || finalMessage.cards?.length) void bumpStats(
-      { treasures: statRef.current.cards, digs: statRef.current.digs, chats: 1 },
-      { isGuest: !effUser, userId: effUser?.id, username: effUser?.email ?? "" },
-    );
+    // 排行榜统计上报（fire-and-forget，失败静默）；任务化路径走幂等键防重（终态回调与补报同一通道）
+    if (accumulator.ended || finalMessage.content || finalMessage.cards?.length) {
+      if (taskId) reportTaskStats(taskId, { treasures: statRef.current.cards, digs: statRef.current.digs, chats: 1 });
+      else void bumpStats(
+        { treasures: statRef.current.cards, digs: statRef.current.digs, chats: 1 },
+        { isGuest: !effUser, userId: effUser?.id, username: effUser?.email ?? "" },
+      );
+    }
 
     // Keep stable message IDs and a retry closure so a missing schema/network failure is recoverable.
     if (user && (finalMessage.content || finalMessage.cards?.length)) {

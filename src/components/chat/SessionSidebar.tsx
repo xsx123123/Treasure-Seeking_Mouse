@@ -1,6 +1,6 @@
 // 左侧会话栏：品牌头、新对话、搜索与分组历史、账号入口。
 import { useState } from "react";
-import { LogIn, LogOut, MessageSquare, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Loader2, LogIn, LogOut, MessageSquare, Pencil, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 import { useIsTouch } from "@/hooks/use-touch";
 import mouseAvatar from "@/assets/pet/mouse-wink.webp";
 import { useI18n } from "@/i18n/provider";
@@ -19,6 +19,7 @@ export function SessionSidebar({
   onLogout,
   storageNote,
   platform = false,
+  taskBadges,
 }: {
   sessions: SessionRow[];
   activeId: string | null;
@@ -33,6 +34,8 @@ export function SessionSidebar({
   onLogout: () => void;
   platform?: boolean;
   storageNote?: string; // 游客存储策略提示（未登录时展示在侧栏底部）
+  /** 后台任务徽标（数据源 taskRegistry.subscribe 派生）：running=进行中 / unseen=新结果 */
+  taskBadges?: Map<string, "running" | "unseen">;
 }): React.ReactElement {
   const { t, lang } = useI18n();
   const [query, setQuery] = useState("");
@@ -135,6 +138,17 @@ export function SessionSidebar({
                       {s.title}
                     </button>
                   )}
+                  {taskBadges?.get(s.id) === "running" ? (
+                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-helix-soft px-1.5 py-0.5 text-xs font-medium text-helix">
+                      <Loader2 size={10} className="animate-spin" />
+                      {t("task.running")}
+                    </span>
+                  ) : taskBadges?.get(s.id) === "unseen" ? (
+                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-pet-gold-soft px-1.5 py-0.5 text-xs font-medium text-pet-amber-deep">
+                      <Sparkles size={10} />
+                      {t("task.unseen")}
+                    </span>
+                  ) : null}
                   <span className={`flex shrink-0 items-center gap-1 ${isTouch ? "" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}>
                     <button
                       type="button"

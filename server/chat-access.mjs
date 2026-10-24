@@ -11,9 +11,16 @@ export function createChatAccess({ env = process.env, authenticate }) {
       if (!token) throw new Error('unauthorized');
       const cloudUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL || '';
       const cloudKey = env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || '';
-      const user = cloudUrl || cloudKey ? await verifyCloudUser(token, cloudUrl, cloudKey, signal) : authenticate(token);
-      if (!user) throw new Error('unauthorized');
-      headers['x-stats-actor'] = user.id;
+      if (cloudUrl || cloudKey) {
+        const user = await verifyCloudUser(token, cloudUrl, cloudKey, signal);
+        if (!user) throw new Error('unauthorized');
+        headers['x-stats-actor'] = user.id;
+      } else {
+        const user = authenticate(token);
+        if (!user) throw new Error('unauthorized');
+        headers['x-stats-actor'] = user.id;
+        headers['x-account-kind'] = 'local'; // 自托管账号身份标记（任务归属 kind=local_account）
+      }
     }
     headers['x-chat-key'] = env.CHAT_SHARED_SECRET || '';
   };

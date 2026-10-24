@@ -32,13 +32,34 @@ try {
 } catch { /* server/.env 不存在时全部依赖进程环境变量 */ }
 
 // 2) 再加载 Edge Function 模块（Node 24 原生 type-stripping 直接跑 .ts）
-const { handler, restoreUsageStats, dumpUsageStats } = await import(pathToFileURL(resolve(root, 'functions/seqout-chat/index.ts')).href);
+const { handler, restoreUsageStats, dumpUsageStats, buildLoopDeps, SYSTEM_PROMPT, SYSTEM_PROMPT_EN } = await import(pathToFileURL(resolve(root, 'functions/seqout-chat/index.ts')).href);
+const { platformToolAdapter } = await import(pathToFileURL(resolve(root, 'functions/seqout-chat/platform-tools.ts')).href);
 
 // 2b) 自托管账号体系：注册/登录/历史快照/排行榜（数据与统计同卷，见 DATA_DIR）
 const { createAccountApi, defaultDataDir } = await import(pathToFileURL(resolve(here, 'account-api.mjs')).href);
 const accountApi = createAccountApi({ dataDir: defaultDataDir(root) });
 const authorizeChat = createChatAccess({ authenticate: token => accountApi.authenticate(token) });
 const ACCOUNT_ROUTES = ['/auth/', '/history', '/leaderboard', '/stats/'];
+
+// 2c) 任务化装配：FileTaskStore 落盘（与统计同卷）+ 进程内真后台（Node 形态 30min 真实计时）
+const { FileTaskStore } = await import(pathToFileURL(resolve(root, 'functions/seqout-chat/tasks/store.ts')).href);
+const { configureTasks, bootMarkOrphans } = await import(pathToFileURL(resolve(root, 'functions/seqout-chat/tasks/index.ts')).href);
+const TASKS_FILE = process.env.TASKS_FILE || resolve(defaultDataDir(root), 'tasks.json');
+const taskStore = await FileTaskStore.create(TASKS_FILE);
+const TASK_INSTANCE_ID = `${Date.now().toString(36)}-${process.pid.toString(36)}`;
+configureTasks({
+  store: taskStore,
+  runtime: 'node',
+  instanceId: TASK_INSTANCE_ID,
+  systemPromptFor: (lang) => (lang === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT),
+  depsFactory: (model, req) => buildLoopDeps({
+    model: model || process.env.LLM_MODEL || '',
+    platform: platformToolAdapter(req, {}, process.env.CYGNUSX_TOOL_CALLBACK_URL || ''),
+    requestId: crypto.randomUUID().slice(0, 8),
+    apiKey: process.env.LLM_API_KEY || '',
+  }),
+});
+await bootMarkOrphans(); // 重启孤儿收口：running/queued → failed/service_restart
 
 // 使用统计持久化：启动时恢复上次快照，之后每 15s 有变化就落盘（tmp + rename，防写一半）
 // 路径可用 STATS_FILE 覆盖（Docker 挂载命名卷到 /app/data，容器重建不丢统计）
@@ -80,11 +101,16 @@ const CORS = {
 };
 
 const MAX_BODY = 1024 * 1024; // 请求体上限 1MB（对话请求远小于此，防异常大请求打满内存）
+const TASK_ACTIONS = new Set(['resume', 'result', 'cancel', 'list']);
 
 createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
   const ac = new AbortController();
-  res.on('close', () => ac.abort()); // 客户端断连 → 中止 handler 内的 LLM 循环，省 token
+  // 任务请求（body 带 session_ref 或 action ∈ 任务集）断连不中止服务端任务——
+  // 「断连省 token」语义由用户显式取消 + 30min 硬超时兜底承接；close 仅断开 SSE 转发循环。
+  let isTaskRequest = false;
+  let forwardClosed = false;
+  res.on('close', () => { if (isTaskRequest) forwardClosed = true; else ac.abort(); });
   try {
     const chunks = [];
     let size = 0;
@@ -136,7 +162,11 @@ createServer(async (req, res) => {
     }
     const bodyText = Buffer.concat(chunks).toString('utf8');
     let literature = false;
-    try { literature = JSON.parse(bodyText).action === 'literature'; } catch { /* handler validates */ }
+    try {
+      const parsed = JSON.parse(bodyText);
+      literature = parsed.action === 'literature';
+      isTaskRequest = typeof parsed.session_ref === 'string' || TASK_ACTIONS.has(parsed.action);
+    } catch { /* handler validates */ }
     if (pathname !== '/cygnusx/discovery' && pathname !== '/stats' && !literature) {
       try { await authorizeChat(headers, ac.signal); }
       catch (err) {
@@ -159,8 +189,8 @@ createServer(async (req, res) => {
       const reader = response.body.getReader();
       for (;;) {
         const { done, value } = await reader.read();
-        if (done) break;
-        res.write(Buffer.from(value));
+        if (done || forwardClosed) break;
+        try { res.write(Buffer.from(value)); } catch { break; } // 客户端已走：任务继续，转发收口
       }
     }
     res.end();

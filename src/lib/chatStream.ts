@@ -16,7 +16,10 @@ export async function consumeChatStream(body: ReadableStream<Uint8Array>, handle
     else if (obj.event === 'cards' && Array.isArray(obj.cards)) handlers.onCards(obj.cards);
     else if (obj.event === 'polariseq') handlers.onPolariseq?.(typeof obj.accession === 'string' ? obj.accession : null);
     else if (obj.event === 'grounding' && Array.isArray(obj.unconfirmed)) handlers.onGrounding?.({ unconfirmed: obj.unconfirmed, confirmed: Array.isArray(obj.confirmed) ? obj.confirmed : [] });
-    else if (obj.event === 'end' && Array.isArray(obj.cards) && Array.isArray(obj.tools)) { ended = true; handlers.onEnd({ cards: obj.cards, tools: obj.tools }); }
+    // 协议只加不改：task/snapshot 为新增帧，旧前端无回调注册时自然跳过
+    else if (obj.event === 'task' && typeof obj.task_id === 'string') handlers.onTask?.(obj);
+    else if (obj.event === 'snapshot' && typeof obj.task_id === 'string') handlers.onSnapshot?.(obj);
+    else if (obj.event === 'end' && Array.isArray(obj.cards) && Array.isArray(obj.tools)) { ended = true; handlers.onEnd({ cards: obj.cards, tools: obj.tools, ...(typeof obj.task_id === 'string' ? { task_id: obj.task_id } : {}) }); }
     else if (typeof obj.error === 'string') handlers.onError(obj.error);
   }
   try {

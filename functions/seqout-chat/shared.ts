@@ -4,7 +4,25 @@
 // 返回原始响应文本，供 ClinVar efetch XML 端点使用）。
 // 独立成模块的目的：biomed/ 领域模块与主函数共用基础设施，避免 index ↔ biomed 的 ES 循环依赖。
 
-type Json = Record<string, unknown> | string | number | boolean | null | Json[];
+export type Json = Record<string, unknown> | string | number | boolean | null | Json[];
+
+/** grounding 核验报告（自 index.ts 平移至此：tasks/ 任务模块需要消费该类型，但禁反向 import 主文件） */
+export interface GroundingUnconfirmed {
+  id: string;
+  /** upstream_404 = 回源明确查无此号；unverified = 超出核验配额或无核验通道 */
+  status: 'upstream_404' | 'unverified';
+}
+
+export interface GroundingReport {
+  /** 正文扫到的全部规范编号 */
+  scanned: string[];
+  /** 已在证据卡片中的编号 */
+  grounded: string[];
+  /** 卡片外但回源证实存在的编号 */
+  confirmed: string[];
+  /** 卡片外且回源无法证实的编号 */
+  unconfirmed: GroundingUnconfirmed[];
+}
 
 /** 跨运行时读环境变量：Deno（Meoo 平台）与 Node（本地自托管 server/local.mjs）皆可 */
 export function envGet(key: string): string {

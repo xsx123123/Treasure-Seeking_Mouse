@@ -1,5 +1,5 @@
 // 对话输入区（下铲指挥台）：多行输入 + 模型选择 + 下铲/停止
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FileUp, Shovel, Square } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { emitPetTyping } from "@/lib/petBus";
@@ -19,6 +19,8 @@ export function Composer({
   onTyping = emitPetTyping,
   paperMode = false,
   onPaperInput,
+  onQueue,
+  queueSlot,
 }: {
   models: string[];
   model: string;
@@ -34,6 +36,10 @@ export function Composer({
   onTyping?: (active: boolean) => void;
   paperMode?: boolean;
   onPaperInput?: (file: File) => void;
+  /** 能力位开启时由编排层提供：streaming 中提交走入队（缺省=旧服务端维持拒绝） */
+  onQueue?: (text: string) => "ok" | "full";
+  /** QueuePanel 挂载位（输入区附近，由编排层接线） */
+  queueSlot?: ReactNode;
 }): React.ReactElement {
   const { t } = useI18n();
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -62,18 +68,31 @@ export function Composer({
   }, [localValue, onTyping]);
 
   function submit(): void {
-    const t = localValue.trim();
-    if (!t || streaming || disabled) return;
+    const text = localValue.trim();
+    if (!text || disabled) return;
+    if (streaming) {
+      // 能力位开启且有进行中任务 → 入队；能力位缺省（旧服务端）→ 维持拒绝（降级形态与现状一致）
+      if (onQueue) {
+        const r = onQueue(text);
+        if (r === "ok") {
+          setLocalValue("");
+          onValueChange("");
+        }
+        // 'full' 时输入框内容保留（异常 5.1.3-1），提示由 QueuePanel 呈现
+      }
+      return;
+    }
     setLocalValue("");
     onValueChange("");
     onEngage?.();
-    onSend(t);
+    onSend(text);
   }
 
   return (
     <div className={welcome ? "w-full" : "safe-b border-t border-border bg-background px-4 py-3 sm:px-6"}>
       <div className="mx-auto max-w-3xl">
-        <div className="flex items-end gap-2 rounded-lg border border-helix/40 bg-card p-3 shadow-soft transition-colors focus-within:border-helix focus-within:ring-2 focus-within:ring-ring">
+        {queueSlot}
+        <div className="flex items-end gap-2 rounded-lg border border-helix/40 bg-card p-3 shadow-soft transition-[border-color,box-shadow] duration-150 focus-within:border-helix focus-within:ring-2 focus-within:ring-ring">
           {paperMode && onPaperInput ? <>
             <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(event) => {
               const file = event.target.files?.[0];

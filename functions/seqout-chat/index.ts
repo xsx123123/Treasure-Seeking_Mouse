@@ -12,7 +12,14 @@ import { chatAccessMode, isTrustedRequest, verifyCloudUser } from './access.ts';
 import { platformToolAdapter } from './platform-tools.ts';
 import { BIOMED_TOOL_DEFS, BIOMED_TOOL_LABELS, executeBiomedTool, extractBiomedCards, isBiomedTool } from './biomed/index.ts';
 import { PROTOCOLS_TOOL_DEFS, PROTOCOLS_TOOL_LABELS, executeProtocolsTool, extractProtocolsCards, isProtocolsTool, protocolsIntegrationStatus, protocolsRegistered } from './protocols/index.ts';
-import { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams } from './shared.ts';
+import { TASKS_CAPABILITIES, bootMarkOrphans, configureTasks, createTaskWithRunner, handleTaskAction, resolveOwner, tasksEnabled } from './tasks/index.ts';
+import type { ChatLoopDeps } from './tasks/types.ts';
+import { envGet, EUTILS, acquireNcbi, fetchWithRetry, sleep, eutilsParams, type Json, type GroundingReport, type GroundingUnconfirmed } from './shared.ts';
+import { runChatLoop } from './tasks/runner.ts';
+import type { ChatLoopDeps, LlmRoundResult, ToolCallLike } from './tasks/types.ts';
+
+// GroundingReport/GroundingUnconfirmed 权威定义在 shared.ts（tasks/ 模块禁反向 import 本文件），此处转授保持既有导出形态
+export type { GroundingReport, GroundingUnconfirmed } from './shared.ts';
 export { SYSTEM_PROMPT, SYSTEM_PROMPT_EN };
 // 共享基础设施已平移至 shared.ts（biomed/ 模块与主函数共用，避免循环依赖）；
 // 按原符号名 re-export，外部 import 路径与签名保持不变。
@@ -67,7 +74,6 @@ if (!envGet('CHAT_SHARED_SECRET') && envGet('CHAT_ACCESS_MODE') !== 'authenticat
 }
 
 
-type Json = Record<string, unknown> | string | number | boolean | null | Json[];
 
 interface ChatMsg {
   role: string;
@@ -202,6 +208,118 @@ function trackTokens(usage: unknown): void {
 
 function touchStats(): void {
   usageStats.updatedAt = new Date().toISOString();
+}
+
+/**
+ * 单轮 LLM 调用（自主循环抽出，供 runChatLoop 经 deps.llmRound 回调）：
+ * 计 llmCalls；90s 超时 + 调用方信号任一触发即中断上游；边解析上游 SSE 边经 onDelta 下发文本增量；
+ * 聚合 tool_calls；流末尾 usage 帧计 token 用量（统计面板数据源）。
+ */
+async function llmRoundFetch(
+  ctx: { model: string; messages: ChatMsg[]; tools: Json[]; apiKey: string; baseUrl: string; requestId: string },
+  onDelta: (text: string) => void,
+  signal: AbortSignal,
+): Promise<LlmRoundResult> {
+  usageStats.llmCalls += 1;
+  touchStats();
+  const llmSignal =
+    typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([signal, AbortSignal.timeout(90_000)])
+      : signal;
+  const llmResp = await fetch(`${ctx.baseUrl}/chat/completions`, {
+    method: 'POST',
+    signal: llmSignal,
+    headers: { Authorization: `Bearer ${ctx.apiKey}`, 'Content-Type': 'application/json' },
+    // stream_options.include_usage：让网关在流末尾回传 token 用量（统计面板数据源）
+    body: JSON.stringify({ model: ctx.model, messages: ctx.messages, stream: true, stream_options: { include_usage: true }, tools: ctx.tools, tool_choice: 'auto' }),
+  });
+  if (!llmResp.ok) {
+    const errText = await llmResp.text();
+    console.error(`[${FUNCTION_NAME}] upstream failed ${ctx.requestId} status=${llmResp.status}: ${errText.slice(0, 300)}`);
+    return { ok: false, status: llmResp.status };
+  }
+  // 解析上游 SSE，聚合文本与 tool_calls
+  const reader = llmResp.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let textBuf = '';
+  const toolCalls: Record<number, ToolCallLike> = {};
+  let sawDone = false;
+  while (true) {
+    if (signal.aborted) break; // 调用方断连：立即停止读取上游流
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith('data:')) continue;
+      const payload = t.slice(5).trim();
+      if (payload === '[DONE]') { sawDone = true; continue; }
+      try {
+        const json = JSON.parse(payload);
+        if (json.usage) trackTokens(json.usage); // 流末尾的 usage 帧（choices 为空）
+        const choice = json.choices?.[0];
+        if (!choice) continue;
+        const content = choice.delta?.content;
+        if (typeof content === 'string' && content.length) { textBuf += content; onDelta(content); }
+        const calls = choice.delta?.tool_calls;
+        if (Array.isArray(calls)) {
+          for (const c of calls) {
+            const idx = c.index ?? 0;
+            if (!toolCalls[idx]) toolCalls[idx] = { id: c.id || `call_${idx}`, type: 'function', function: { name: '', arguments: '' } };
+            if (c.id) toolCalls[idx].id = c.id;
+            if (c.function?.name) toolCalls[idx].function.name += c.function.name;
+            if (c.function?.arguments) toolCalls[idx].function.arguments += c.function.arguments;
+          }
+        }
+      } catch { /* ignore partial */ }
+    }
+  }
+  const callsArr = Object.values(toolCalls).filter((c) => c.function.name);
+  return { ok: true, text: textBuf, toolCalls: callsArr, sawDone };
+}
+
+/** LLM 凭证解析（三段式：项目级 secret → 平台 key → 本地 LLM_API_KEY）；handler 与任务 depsFactory 共用单点 */
+function resolveApiKey(req: Request): string {
+  const projectUrlId = req.headers.get('X-Meoo-Project-Url-Id')?.trim() || '';
+  const projectSecretName = `MEOO_PROJECT_API_KEY_${projectUrlId}`;
+  return (projectUrlId ? envGet(projectSecretName) : '') || envGet('MEOO_PROJECT_API_KEY') || envGet('LLM_API_KEY') || '';
+}
+
+/**
+ * 主循环依赖包构建（POST 对话路径与任务模块 depsFactory 共用单一实现）。
+ * 统计写入点收敛为回调（语义与主循环迁出前逐行对应）。
+ */
+function buildLoopDeps(ctx: { model: string; platform: ReturnType<typeof platformToolAdapter>; requestId: string; apiKey: string }): ChatLoopDeps {
+  return {
+    llmRound: (msgs, onDelta, signal) => llmRoundFetch(
+      { model: ctx.model, messages: msgs as ChatMsg[], tools: [...TOOL_DEFS, ...ctx.platform.tools], apiKey: ctx.apiKey, baseUrl: LLM_BASE_URL, requestId: ctx.requestId },
+      onDelta,
+      signal,
+    ),
+    executeTool,
+    platformHas: (name) => ctx.platform.has(name),
+    platformCall: (name, a, signal) => ctx.platform.call(name, a, signal),
+    labelOf,
+    extractCards,
+    trimForLLM,
+    parseIntent: parseResearchIntent,
+    hasRuns,
+    isBusinessEmpty,
+    needsLiteratureFollowup,
+    searchAllLiterature,
+    wrapLit: wrap,
+    groundingCheck: (text, cards) => groundingCheck(text, cards),
+    trackToolStart: (name) => { usageStats.toolCalls += 1; (usageStats.tools[name] ??= { count: 0, errors: 0, empties: 0 }).count += 1; touchStats(); },
+    trackToolEmpty: (name) => { (usageStats.tools[name] ??= { count: 0, errors: 0, empties: 0 }).empties += 1; },
+    trackToolError: (name) => { usageStats.toolErrors += 1; (usageStats.tools[name] ??= { count: 0, errors: 0, empties: 0 }).errors += 1; touchStats(); },
+    intentToolName: INTENT_TOOL_NAME,
+    literatureToolName: LITERATURE_TOOL_NAME,
+    downloadLinkTools: DOWNLOAD_LINK_TOOLS,
+    logPrefix: FUNCTION_NAME,
+  };
 }
 
 // ---------- 工具定义（26 个 seqout 工具 + 5 个 NGDC 工具 + 文献搜索） ----------
@@ -1565,24 +1683,7 @@ function extractCards(name: string, payload: Json): Json[] {
 // 卡片外的编号再回源做存在性核验（最多 GROUNDING_VERIFY_LIMIT 个，3s 超时，复用 fetchWithRetry）；
 // 仍无法证实的经 {event:'grounding'} 下发前端警示条，核验摘要同时写入 tool_logs 供审计。
 
-export interface GroundingUnconfirmed {
-  id: string;
-  /** upstream_404 = 回源明确查无此号；unverified = 超出核验配额或无核验通道 */
-  status: 'upstream_404' | 'unverified';
-}
-
-export interface GroundingReport {
-  /** 正文扫到的全部规范编号 */
-  scanned: string[];
-  /** 已在证据卡片中的编号 */
-  grounded: string[];
-  /** 卡片外但回源证实存在的编号 */
-  confirmed: string[];
-  /** 卡片外且回源无法证实的编号 */
-  unconfirmed: GroundingUnconfirmed[];
-}
-
-/** 正文编号扫描模式：normalize 把命中归一到与卡片标识可比的规范形（编号大写、PMID 带前缀、DOI 小写去尾标点） */
+/** grounding 核验（GroundingReport/GroundingUnconfirmed 定义见 shared.ts，本文件转授导出） */
 export const SCAN_PATTERNS: { kind: string; re: RegExp; normalize: (m: RegExpExecArray) => string }[] = [
   { kind: 'gse', re: /\bGSE\d{2,7}\b/gi, normalize: (m) => m[0].toUpperCase() },
   { kind: 'gsm', re: /\bGSM\d{3,8}\b/gi, normalize: (m) => m[0].toUpperCase() },
@@ -1777,12 +1878,7 @@ export const handler = async (req: Request): Promise<Response> => {
   const requestId = crypto.randomUUID().slice(0, 8);
   const startTime = Date.now();
   try {
-    const projectUrlId = req.headers.get('X-Meoo-Project-Url-Id')?.trim() || '';
-    const projectSecretName = `MEOO_PROJECT_API_KEY_${projectUrlId}`;
-    const projectServiceAK =
-      (projectUrlId ? envGet(projectSecretName) : '') ||
-      envGet('MEOO_PROJECT_API_KEY') ||
-      envGet('LLM_API_KEY') || '';
+    const projectServiceAK = resolveApiKey(req);
 
     // 请求体只读一次（Request body 不可重复读）：文献 action 在此分流，其余走对话流程
     // 文献联动只打公共 API，不需要 AI 凭证，放在凭证检查之前
@@ -1845,6 +1941,11 @@ export const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // 任务 action 分流（resume/result/cancel/list）——位于凭证检查之后（鉴权红线：任务操作绝无豁免）
+    if (req.method === 'POST' && typeof body.action === 'string' && body.action !== 'literature' && ['resume', 'result', 'cancel', 'list'].includes(body.action)) {
+      return handleTaskAction(body as Record<string, Json | undefined>, req, verifiedActor);
+    }
+
     // GET：模型目录（注入 defaultModel：优先本地 LLM_MODEL 配置，让前端默认选中它）
     // 超时放宽到 8s：网关冷启动/跨网较慢时前端仍能拿到目录，避免回退到无效的兜底模型
     if (req.method === 'GET') {
@@ -1864,6 +1965,10 @@ export const handler = async (req: Request): Promise<Response> => {
             const configured = envGet('LLM_MODEL');
             const finalDefault = configured || upstreamDefault;
             if (finalDefault) parsed.defaultModel = finalDefault;
+            // 能力位注入（能力降级单一事实源：tasksEnabled 为假=旧服务端形态，不注入）
+            if (tasksEnabled()) {
+              parsed.capabilities = { ...((parsed.capabilities ?? {}) as Record<string, unknown>), tasks: true, task_max_concurrent: TASKS_CAPABILITIES.task_max_concurrent };
+            }
             body = JSON.stringify(parsed);
           }
         } catch { /* 非 JSON 响应原样透传 */ }
@@ -1889,241 +1994,48 @@ export const handler = async (req: Request): Promise<Response> => {
     trackActor(verifiedActor ?? req.headers.get('x-stats-actor') ?? '');
     touchStats();
 
-    const encoder = new TextEncoder();
-    const allCards: Json[] = [];
-    const toolLogs: { name: string; label: string; ok: boolean; ms: number; intent?: ResearchIntent; notes?: string[] }[] = [];
-    let aborted = false;
-    let boostSent = false; // 「下载加速」卡片事件每轮最多发一次
-    let fullText = ''; // 各轮助手正文累积（工具轮的前言 + 最终答复），供末尾的兜底卡片检测
-    let sessionIntent: ResearchIntent | null = null; // 本轮 intent_plan 校验通过的意图（供文献自动补链判断）
-    let litSearched = false; // 模型本轮是否已调用过 literature_search（自动补链防重）
-    req.signal.addEventListener('abort', () => { aborted = true; });
+    const loopDeps: ChatLoopDeps = buildLoopDeps({ model, platform, requestId, apiKey: projectServiceAK });
 
+    // 任务化路径（能力位分叉处）：tasksEnabled 且身份可解析且前端显式携带 session_ref 时走任务创建
+    // （断连存续/续传/排队上游）；旧前端无 session_ref → 走下方原内联流式路径（与改造前逐字节一致）。
+    const taskOwner = resolveOwner(req, verifiedActor);
+    if (tasksEnabled() && taskOwner && typeof body.session_ref === 'string') {
+      const lastUser = [...history].reverse().find((m) => m.role === 'user' && typeof m.content === 'string');
+      const created = await createTaskWithRunner({
+        messages: history.slice(-16).map((m) => ({ role: m.role, content: m.content })),
+        question: typeof lastUser?.content === 'string' ? lastUser.content : '',
+        model,
+        lang,
+        queueId: typeof body.queue_id === 'string' ? body.queue_id : undefined,
+        sessionRef: typeof body.session_ref === 'string' ? body.session_ref : undefined,
+        owner: taskOwner,
+        req,
+        deps: loopDeps,
+      });
+      return created;
+    }
+
+    const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
         // 心跳：每 10s 发送 SSE 注释行，避免代理层对长连接的缓冲/超时
         const heartbeat = setInterval(() => {
-          if (aborted) return;
+          if (req.signal.aborted) return;
           try { controller.enqueue(encoder.encode(': ping\n\n')); } catch { /* closed */ }
         }, 10000);
         const send = (obj: Json) => {
-          if (aborted) return;
+          if (req.signal.aborted) return;
           try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`)); } catch { /* closed */ }
         };
         try {
-          for (let round = 0; round < 40 && !aborted; round++) {
-            usageStats.llmCalls += 1;
-            touchStats();
-            // 90s 超时 + 客户端断连信号：任一触发都会中断上游请求，避免挂死/断连后继续烧 token
-            const llmSignal =
-              typeof AbortSignal.any === 'function'
-                ? AbortSignal.any([req.signal, AbortSignal.timeout(90_000)])
-                : req.signal;
-            const llmResp = await fetch(`${LLM_BASE_URL}/chat/completions`, {
-              method: 'POST',
-              signal: llmSignal,
-              headers: { Authorization: `Bearer ${projectServiceAK}`, 'Content-Type': 'application/json' },
-              // stream_options.include_usage：让网关在流末尾回传 token 用量（统计面板数据源）
-              body: JSON.stringify({ model, messages, stream: true, stream_options: { include_usage: true }, tools: [...TOOL_DEFS, ...platform.tools], tool_choice: 'auto' }),
-            });
-            if (!llmResp.ok) {
-              const errText = await llmResp.text();
-              console.error(`[${FUNCTION_NAME}] upstream failed ${requestId} status=${llmResp.status}: ${errText.slice(0, 300)}`);
-              send({ error: `AI 服务返回 ${llmResp.status}` });
-              break;
-            }
-            // 解析上游 SSE，聚合文本与 tool_calls
-            const reader = llmResp.body!.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let textBuf = '';
-            const toolCalls: Record<number, ToolCall> = {};
-            let sawDone = false;
-            while (true) {
-              if (aborted) break; // 客户端断连：立即停止读取上游流
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-              for (const line of lines) {
-                const t = line.trim();
-                if (!t.startsWith('data:')) continue;
-                const payload = t.slice(5).trim();
-                if (payload === '[DONE]') { sawDone = true; continue; }
-                try {
-                  const json = JSON.parse(payload);
-                  if (json.usage) trackTokens(json.usage); // 流末尾的 usage 帧（choices 为空）
-                  const choice = json.choices?.[0];
-                  if (!choice) continue;
-                  const content = choice.delta?.content;
-                  if (typeof content === 'string' && content.length) { textBuf += content; send({ delta: content }); }
-                  const calls = choice.delta?.tool_calls;
-                  if (Array.isArray(calls)) {
-                    for (const c of calls) {
-                      const idx = c.index ?? 0;
-                      if (!toolCalls[idx]) toolCalls[idx] = { id: c.id || `call_${idx}`, type: 'function', function: { name: '', arguments: '' } };
-                      if (c.id) toolCalls[idx].id = c.id;
-                      if (c.function?.name) toolCalls[idx].function.name += c.function.name;
-                      if (c.function?.arguments) toolCalls[idx].function.arguments += c.function.arguments;
-                    }
-                  }
-                } catch { /* ignore partial */ }
-              }
-            }
-            if (aborted) break; // 断连后不再执行工具、不进入下一轮
-            fullText += textBuf;
-            const callsArr = Object.values(toolCalls).filter((c) => c.function.name);
-            if (!callsArr.length) {
-              if (!sawDone) send({ delta: '' });
-              break;
-            }
-            // 执行工具，把结果作为 tool message 继续下一轮
-            messages.push({ role: 'assistant', content: textBuf || null, tool_calls: callsArr });
-            for (const call of callsArr) {
-              const label = labelOf(call.function.name);
-              const t0 = Date.now();
-              // 意图规划条目：不调外部 API、不发 SSE tool 事件、不计用量统计。
-              // 校验通过的 IR 落 tool_logs 供审计（前端按名过滤，同 grounding_check 模式），
-              // 归一化结果作为 tool 消息回灌模型，引导后续检索工具参数；校验失败只回灌原因，
-              // 模型可修正重试或直连检索工具——整体退化为现有无意图行为。
-              if (call.function.name === INTENT_TOOL_NAME) {
-                let intentRaw: unknown = null;
-                try { intentRaw = JSON.parse(call.function.arguments || '{}'); } catch { /* 非法 JSON 按校验失败处理 */ }
-                const parsedIntent = parseResearchIntent(intentRaw);
-                if (parsedIntent.ok === false) {
-                  messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ success: false, error: `意图校验失败：${parsedIntent.reason}。可修正后重试 ${INTENT_TOOL_NAME}，或直接调用检索工具。` }) });
-                } else {
-                  sessionIntent = parsedIntent.intent;
-                  toolLogs.push({ name: INTENT_TOOL_NAME, label, ok: true, ms: Date.now() - t0, intent: parsedIntent.intent, notes: parsedIntent.notes });
-                  messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: JSON.stringify({ success: true, data: { intent: parsedIntent.intent, normalized: parsedIntent.notes, note: '意图已记录并完成归一化，后续检索请采用归一化取值（organism 用二名法学名、assay 用 library_strategy 词表值）。' } }) });
-                }
-                continue;
-              }
-              usageStats.toolCalls += 1;
-              const entry = (usageStats.tools[call.function.name] ??= { count: 0, errors: 0, empties: 0 });
-              entry.count += 1;
-              if (call.function.name === LITERATURE_TOOL_NAME) litSearched = true; // 无论成败都算"模型已自查"，自动补链不重复
-              send({ event: 'tool', name: call.function.name, label, status: 'running' });
-              let resultText: string;
-              let callArgs: Record<string, Json | undefined> = {};
-              let toolPayload: Json | null = null;
-              try {
-                callArgs = JSON.parse(call.function.arguments || '{}') as Record<string, Json | undefined>;
-                const payload = (platform.has(call.function.name)
-                  ? await platform.call(call.function.name, callArgs, req.signal)
-                  : await executeTool(call.function.name, callArgs)) as Json;
-                if (platform.has(call.function.name)) send({ event: 'platform_tool', result: payload });
-                toolPayload = payload;
-                if (isBusinessEmpty(payload)) entry.empties += 1; // 空矿 ≠ 失败，分开统计
-                const cards = extractCards(call.function.name, payload);
-                if (cards.length) { allCards.push(...cards); send({ event: 'cards', cards }); }
-                resultText = trimForLLM(payload);
-                toolLogs.push({ name: call.function.name, label, ok: true, ms: Date.now() - t0 });
-                send({ event: 'tool', name: call.function.name, label, status: 'done', ms: Date.now() - t0 });
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                resultText = JSON.stringify({ success: false, error: message });
-                usageStats.toolErrors += 1;
-                entry.errors += 1;
-                touchStats();
-                toolLogs.push({ name: call.function.name, label, ok: false, ms: Date.now() - t0 });
-                send({ event: 'tool', name: call.function.name, label, status: 'error', ms: Date.now() - t0, error: message });
-                console.warn(`[${FUNCTION_NAME}] tool failed ${requestId} ${call.function.name}: ${message.slice(0, 200)}`);
-              }
-              messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: resultText });
-              // 下载链接类工具：给前端发固定「下载加速」卡片事件（Polariseq）。
-              // accession 优先取工具解析出的真实 BioProject（下载工具会在 payload 里带上），
-              // 其次取入参 PRJNA，再次从结果文本捞。无论工具成败都发——用户拿到链接才是推荐时机。
-              // 例外：业务性空矿（GEO-only 无公开 run）不发卡片，没有可下载的原始数据时推荐下载器是误导。
-              if (DOWNLOAD_LINK_TOOLS.has(call.function.name) && !boostSent && !isBusinessEmpty(toolPayload)) {
-                boostSent = true;
-                const payloadObj = (toolPayload && typeof toolPayload === 'object' && !Array.isArray(toolPayload) ? toolPayload : {}) as Record<string, unknown>;
-                const dataObj = (payloadObj.data && typeof payloadObj.data === 'object' && !Array.isArray(payloadObj.data) ? payloadObj.data : {}) as Record<string, unknown>;
-                const parsed = typeof dataObj.bioproject === 'string' && /^PRJ/i.test(dataObj.bioproject) ? dataObj.bioproject.toUpperCase() : null;
-                const fromArgs = /^PRJ(NA|EB|DB)\d+$/i.test(String(callArgs.study_accession ?? '')) ? String(callArgs.study_accession).toUpperCase() : null;
-                const fromResult = /PRJ(?:NA|EB|DB)\d+/i.exec(resultText)?.[0]?.toUpperCase() ?? null;
-                send({ event: 'polariseq', accession: parsed ?? fromArgs ?? fromResult });
-              }
-            }
-            textBuf = '';
-            if (round === 39) send({ delta: lang === 'en' ? '\n\n(Reached the maximum queries for this turn; ask a follow-up to continue.)' : '\n\n（已达到本轮最大查询次数，请追问以继续。）' });
-          }
-          // 数据集→文献自动补链：cards 出现 GSE/PRJ 级数据集、有文献需求信号（intent_plan
-          // needs_literature 或用户原文"论文/文献/paper"类词）、且模型本轮未调用过
-          // literature_search 时，平台自动补一次多源文献检索，结果并入同一消息 cards 流。
-          // 模型仍是编排主体——这是兜底补链不是替代；模型已自查过文献则绝不重复。
-          if (!aborted) {
-            const lastUserMsg = [...history].reverse().find((m) => m.role === 'user' && typeof m.content === 'string');
-            const followupQuery = (sessionIntent?.question || lastUserMsg?.content || '').slice(0, 200);
-            if (
-              followupQuery &&
-              needsLiteratureFollowup({
-                cards: allCards,
-                intentNeedsLiterature: sessionIntent?.needs_literature === true,
-                userText: lastUserMsg?.content ?? '',
-                literatureAlreadySearched: litSearched,
-              })
-            ) {
-              const litLabel = labelOf(LITERATURE_TOOL_NAME);
-              const litT0 = Date.now();
-              usageStats.toolCalls += 1;
-              const litEntry = (usageStats.tools[LITERATURE_TOOL_NAME] ??= { count: 0, errors: 0, empties: 0 });
-              litEntry.count += 1;
-              touchStats();
-              send({ event: 'tool', name: LITERATURE_TOOL_NAME, label: litLabel, status: 'running' });
-              try {
-                const payload = wrap(await searchAllLiterature({ query: followupQuery }));
-                const cards = extractCards(LITERATURE_TOOL_NAME, payload);
-                if (cards.length) { allCards.push(...cards); send({ event: 'cards', cards }); }
-                toolLogs.push({ name: LITERATURE_TOOL_NAME, label: litLabel, ok: true, ms: Date.now() - litT0 });
-                send({ event: 'tool', name: LITERATURE_TOOL_NAME, label: litLabel, status: 'done', ms: Date.now() - litT0 });
-              } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                litEntry.errors += 1;
-                usageStats.toolErrors += 1;
-                toolLogs.push({ name: LITERATURE_TOOL_NAME, label: litLabel, ok: false, ms: Date.now() - litT0 });
-                send({ event: 'tool', name: LITERATURE_TOOL_NAME, label: litLabel, status: 'error', ms: Date.now() - litT0, error: message });
-                console.warn(`[${FUNCTION_NAME}] literature followup failed ${requestId}: ${message.slice(0, 200)}`);
-              }
-            }
-          }
-          // 兜底推荐：本轮没发过卡片时，看正文是否给出 BioProject / Run 编号——
-          // 给了即视为有下载意图，补「下载加速」卡片（正文不写推荐语，卡片由平台渲染）。
-          // GEO-only 项目 hasRuns=false 不发；正文出现 SRR 即必有公开 run，直接发（解析不到 PRJ 时 accession 置空）。
-          if (!boostSent && !aborted) {
-            const prj = /PRJ(?:NA|EB|DB)\d{3,}/i.exec(fullText)?.[0]?.toUpperCase() ?? null;
-            if (prj) {
-              try {
-                if (await hasRuns(prj)) { boostSent = true; send({ event: 'polariseq', accession: prj }); }
-              } catch { /* 上游查不动就不发卡片 */ }
-            } else if (/(?:SRR|ERR|DRR)\d{5,}/i.test(fullText)) {
-              boostSent = true;
-              send({ event: 'polariseq', accession: null });
-            }
-          }
-          // 正文↔证据一致性校验（grounding）：模型正文引用的编号须能在本轮证据卡片中找到，
-          // 找不到的回源核验，仍无法证实的经 {event:'grounding'} 提示用户自行核验；
-          // 核验摘要写入 tool_logs 供审计。校验失败绝不打断主流程（宁可漏报，不可丢回答）。
-          if (!aborted && fullText.trim()) {
-            const g0 = Date.now();
-            try {
-              const report = await groundingCheck(fullText, allCards);
-              toolLogs.push({ name: 'grounding_check', label: '正文编号核验', ok: report.unconfirmed.length === 0, ms: Date.now() - g0 });
-              if (report.unconfirmed.length > 0) {
-                send({ event: 'grounding', unconfirmed: report.unconfirmed, confirmed: report.confirmed });
-                console.warn(`[${FUNCTION_NAME}] grounding ${requestId} unconfirmed=${report.unconfirmed.map((u) => u.id).join(',')}`);
-              }
-            } catch (err) {
-              console.warn(`[${FUNCTION_NAME}] grounding failed ${requestId}: ${err instanceof Error ? err.message : String(err)}`);
-            }
-          }
-          send({ event: 'end', cards: allCards, tools: toolLogs });
-          console.info(`[${FUNCTION_NAME}] stream done ${requestId} tools=${toolLogs.length} durationMs=${Date.now() - startTime}`);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Internal Server Error';
-          console.error(`[${FUNCTION_NAME}] stream failed ${requestId}: ${message}`);
-          send({ error: message });
+          // 降级/现状路径：任务信号 = 请求信号（断连即中止，与改造前逐字节一致）。
+          // 任务化路径（tasksEnabled 时经 createTaskWithRunner）在任务组 6 接线，此处保持原语义。
+          await runChatLoop(
+            { model, messages, history, lang, requestId, startTime },
+            loopDeps,
+            send,
+            req.signal,
+          );
         } finally {
           clearInterval(heartbeat);
           try { controller.enqueue(encoder.encode('data: [DONE]\n\n')); controller.close(); } catch { /* closed */ }
@@ -2143,6 +2055,22 @@ export const handler = async (req: Request): Promise<Response> => {
 const denoRuntime = (globalThis as Record<string, unknown>).Deno as
   | { serve?: (h: (req: Request) => Response | Promise<Response>) => void }
   | undefined;
+
+// Edge 形态任务装配（Node 自托管由 server/local.mjs 以 FileTaskStore 装配，此处仅平台形态）：
+// 实例标识 = isolate 模块级随机值（孤儿判定）；EdgeRuntime.waitUntil 尽力推进断连后的任务；
+// 冷启动孤儿标记（内部 catch 不阻断启动）。
+if (denoRuntime?.serve) {
+  const edgeRt = (globalThis as Record<string, unknown>).EdgeRuntime as { waitUntil?: (p: Promise<unknown>) => void } | undefined;
+  configureTasks({
+    runtime: 'edge',
+    instanceId: crypto.randomUUID(),
+    edgeWaitUntil: edgeRt?.waitUntil ? (p) => edgeRt.waitUntil!(p) : null,
+    systemPromptFor: (lang) => (lang === 'en' ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT),
+    depsFactory: (model, req) => buildLoopDeps({ model, platform: platformToolAdapter(req, {}, envGet('CYGNUSX_TOOL_CALLBACK_URL') || ''), requestId: crypto.randomUUID().slice(0, 8), apiKey: resolveApiKey(req) }),
+  });
+  void bootMarkOrphans();
+}
+
 denoRuntime?.serve(handler);
 
 function labelOf(name: string): string {
